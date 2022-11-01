@@ -1,47 +1,22 @@
-#ifndef GPU_TASK1_H
-#define GPU_TASK1_H
+#ifndef GPU_TASK2_H
+#define GPU_TASK2_H
 
-#include "matrix.h"
-#include <cuda_runtime.h>
+#include "../library.h"
+#define tilingSize 16 
 
-
-#define cudaCheckError() {                                                                  \
- cudaError_t e=cudaGetLastError();                                                          \
- if(e!=cudaSuccess) {                                                                       \
-   printf("Cuda failure %s:%d: '%s'\n",__FILE__,__LINE__,cudaGetErrorString(e));            \
-   exit(0);                                                                                 \
- }                                                                                          \
-}
-
-int get_max_threads_per_block(){
-    int max_threads_per_block;
-    cudaDeviceGetAttribute(&max_threads_per_block, cudaDevAttrMaxThreadsPerBlock, 0);
-    return max_threads_per_block;
-}
-
-int get_max_threads_per_multiprocessor(){
-    int max_threads_per_multiprocessor;
-    cudaDeviceGetAttribute(&max_threads_per_multiprocessor, cudaDevAttrMaxThreadsPerMultiProcessor, 0);
-    return max_threads_per_multiprocessor;
-}
-
-
-__global__ 
+__global__
 void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_rows, int A_cols, int B_rows, int B_cols, int C_rows, int C_cols){
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
+{
+    //Using Tiling to improve the performance
+    int block_size = 16;
+    __shared__ double ds_M[block_size][block_size];
+    __shared__ double ds_N[block_size][block_size];
 
-    double sum = 0;
-    if (row < A_rows && col < B_cols){
-        for (int i = 0; i < A_cols; i++){
-            sum += mat_a[row * A_cols + i] * mat_b[i * B_cols + col];
-        }
-        mat_c[row * C_cols + col] = sum;
-    }
-
+    
 }
 
-template <typename T> 
+
+template<typename T> 
 long long GPU_matrix_multiplication(matrix<T> *A, matrix<T> *B, matrix<T> *C, int block_size){
     
     T *d_mat_a, *d_mat_b, *d_mat_c;
@@ -105,4 +80,9 @@ long long GPU_matrix_multiplication(matrix<T> *A, matrix<T> *B, matrix<T> *C, in
     return kernel_duration;
     
 }
+
+
+
+
+
 #endif

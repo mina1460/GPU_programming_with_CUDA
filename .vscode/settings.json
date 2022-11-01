@@ -3,6 +3,7 @@
         "cstdlib": "cpp",
         "algorithm": "cpp",
         "chrono": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "stdexcept": "cpp"
     }
 }
