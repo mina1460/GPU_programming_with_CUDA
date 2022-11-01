@@ -26,11 +26,12 @@ int get_max_threads_per_multiprocessor(){
 }
 
 
-_global__ void MatrixMulKernel(float* mat_a, float* mat_b, float* mat_c, int A_rows, int A_cols, int B_rows, int B_cols, int C_rows, int C_cols){
+__global__ 
+void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_rows, int A_cols, int B_rows, int B_cols, int C_rows, int C_cols){
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    float sum = 0;
+    double sum = 0;
     if (row < A_rows && col < B_cols){
         for (int i = 0; i < A_cols; i++){
             sum += mat_a[row * A_cols + i] * mat_b[i * B_cols + col];
@@ -40,14 +41,13 @@ _global__ void MatrixMulKernel(float* mat_a, float* mat_b, float* mat_c, int A_r
 
 }
 
-
-template <typename T>
-long long GPU_matrix_multiplication(matrix<T> &A, matrix<T> &B, matrix<T> &C, int block_size){
+template <typename T> 
+long long GPU_matrix_multiplication(matrix<T> *A, matrix<T> *B, matrix<T> *C, int block_size){
     
-    float *d_mat_a, *d_mat_b, *d_mat_c;
-    int size_a = A.get_rows() * A.get_columns() * sizeof(T);
-    int size_b = B.get_rows() * B.get_columns() * sizeof(T);
-    int size_c = C.get_rows() * C.get_columns() * sizeof(T);
+    T *d_mat_a, *d_mat_b, *d_mat_c;
+    int size_a = A->get_rows() * A->get_columns() * sizeof(T);
+    int size_b = B->get_rows() * B->get_columns() * sizeof(T);
+    int size_c = C->get_rows() * C->get_columns() * sizeof(T);
 
     cudaMalloc((void **)&d_mat_a, size_a);
     cudaCheckError();
@@ -58,18 +58,18 @@ long long GPU_matrix_multiplication(matrix<T> &A, matrix<T> &B, matrix<T> &C, in
     cudaMalloc((void **)&d_mat_c, size_c);
     cudaCheckError();
 
-    cudaMemcpy(d_mat_a, A.data, size_a, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mat_a, A->data, size_a, cudaMemcpyHostToDevice);
     cudaCheckError();
 
-    cudaMemcpy(d_mat_b, B.data, size_b, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mat_b, B->data, size_b, cudaMemcpyHostToDevice);
     cudaCheckError();
 
-    cudaMemcpy(d_mat_c, C.data, size_c, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mat_c, C->data, size_c, cudaMemcpyHostToDevice);
     cudaCheckError();
 
     dim3 blockSizes(block_size, block_size);
-    int grid_x = std::ceil(static_cast<double>(B.get_columns()) / static_cast<double>(blockSizes.x));
-    int grid_y = std::ceil(static_cast<double>(A.get_rows()) / static_cast<double>(blockSizes.y));
+    int grid_x = std::ceil(static_cast<double>(B->get_columns()) / static_cast<double>(blockSizes.x));
+    int grid_y = std::ceil(static_cast<double>(A->get_rows()) / static_cast<double>(blockSizes.y));
 
     std::cout << "Total number of blocks: " << grid_x * grid_y << std::endl;
     std::cout << "Total number of threads: " << grid_x * grid_y * blockSizes.x * blockSizes.y << std::endl;
@@ -78,7 +78,7 @@ long long GPU_matrix_multiplication(matrix<T> &A, matrix<T> &B, matrix<T> &C, in
 
     std::chrono::high_resolution_clock::time_point start = get_time();
 
-    MatrixMulKernel<<<gridSizes, blockSizes>>>(d_mat_a, d_mat_b, d_mat_c, A.get_columns(), A.get_rows());
+    MatrixMulKernel<<<gridSizes, blockSizes>>>(d_mat_a, d_mat_b, d_mat_c, A->get_columns(), A->get_rows(), B->get_columns(), B->get_rows(), C->get_columns(), C->get_rows());
 
 
     // cuda device synchronize
@@ -89,7 +89,7 @@ long long GPU_matrix_multiplication(matrix<T> &A, matrix<T> &B, matrix<T> &C, in
     long long kernel_duration = get_time_diff(start, end, nanoseconds);
     
 
-    cudaMemcpy(C.data, d_mat_c, size_c, cudaMemcpyDeviceToHost);
+    cudaMemcpy(C->data, d_mat_c, size_c, cudaMemcpyDeviceToHost);
     cudaCheckError();
 
     cudaFree(d_mat_a);

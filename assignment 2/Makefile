@@ -9,7 +9,7 @@ all:
 	nvcc task3.cu -o task3
 
 build_task1:
-	g++ task1.c -o task1
+	nvcc task1.cu -o task1
 
 run_task1: build_task1
 	@echo "********************************"
