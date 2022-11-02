@@ -2,13 +2,11 @@
 #define GPU_TASK2_H
 
 #include "../library.h"
-#define tilingSize 16 
 
 __global__
 void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int block_size, int A_width, int A_height, int B_width, int B_height, int C_width, int C_height){
 
     //Using Tiling to improve the performance
-    // int block_size = 16;
     int tile_size = block_size; 
     __shared__ double ds_A[BLOCK_SIZE][BLOCK_SIZE];
     __shared__ double ds_B[BLOCK_SIZE][BLOCK_SIZE];
