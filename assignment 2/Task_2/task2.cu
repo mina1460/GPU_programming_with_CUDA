@@ -48,6 +48,7 @@ int main(int argc, char** argv){
     long long time_in_kernel = GPU_matrix_multiplication( &A, &B, &C_GPU, block_size);
     end = get_time();
 
+    
     time_in_chosen_unit = get_time_diff(start, end, time_unit);
     
     std::cout << "GPU matrix multiplication took " << time_in_chosen_unit << " " + unit_name(time_unit) << std::endl;
