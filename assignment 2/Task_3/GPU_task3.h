@@ -1,45 +1,68 @@
-#ifndef GPU_TASK3_H
-#define GPU_TASK3_H
+#ifndef GPU_TASK2_H
+#define GPU_TASK2_H
 
 #include "../library.h"
+#define bx blockIdx.x
+#define by blockIdx.y
+#define tx threadIdx.x
+#define ty threadIdx.y
+#define tile_size BLOCK_SIZE
 
 __global__
-void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int block_size, int A_width, int A_height, int B_width, int B_height, int C_width, int C_height){
+void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_width, int A_height, int B_width, int B_height, int C_width, int C_height){
 
     //Using Tiling to improve the performance
-    int tile_size = block_size; 
+    
     __shared__ double ds_A[BLOCK_SIZE][BLOCK_SIZE];
     __shared__ double ds_B[BLOCK_SIZE][BLOCK_SIZE];
-    
-    int bx = blockIdx.x; int by = blockIdx.y;
-    int tx = threadIdx.x; int ty = threadIdx.y;
 
     int Row = by * tile_size + ty;
-    int Col = bx * tile_size + tx;
-    double result = 0;
+    int Col = (bx * tile_size + tx)*granularity;
+    const int NBytes = granularity;
 
+    double results[NBytes];
+    #pragma unroll
+    for(int g = 0; g < granularity; g++)
+    { results[g] = 0.0; }
+
+    
     for(int ph = 0; ph < (A_width+tile_size - 1)/tile_size; ph++)
     {
         if(Row < A_height && ph*tile_size + tx < A_width)
             ds_A[ty][tx] = mat_a[Row * A_width + ph * tile_size + tx];
-        else 
-            ds_A[ty][tx] = 0.0;
-        if(Col < B_width && ph*tile_size + ty < B_height)
-            ds_B[ty][tx] = mat_b[(ph * tile_size + ty) * B_width + Col];
-        else
-            ds_B[ty][tx] = 0.0;
-            
-        __syncthreads();
 
-        for(int k = 0; k < tile_size; k++)
+        for(int g = 0; g < granularity; g++)
         {
-            // if(Row < A_height && Col < B_width && ph*tile_size + k < A_width && ph*tile_size + k < B_height)
-                result += ds_A[ty][k] * ds_B[k][tx];
+            if(Col + g < B_width && ph*tile_size + ty < B_height)
+                ds_B[ty][granularity*tx+g] = mat_b[(ph * tile_size + ty) * B_width + Col + g];
+            else 
+                ds_B[ty][granularity*tx+g] = 0.0;
+            
         }
         __syncthreads();
+        for(int k = 0; k < tile_size; k++)
+        {
+            for(int g = 0 ; g < granularity; g++)
+            {
+            
+                    if( Row < A_height && Col + g < B_width && ph*tile_size + k < A_width && ph*tile_size + k < B_height)
+                        results[g] += ds_A[ty][k] * ds_B[k][granularity*tx+g];
+            }
+        }
+        __syncthreads();
+
     }
-    if(Row < C_height && Col < C_width)
-        mat_c[Row * C_width + Col] = result;
+    
+        
+    // #pragma unroll
+    for(int g = 0; g < granularity; g++)
+        {
+            if(Row < C_height && (Col + g) < C_width)
+                {
+                    mat_c[Row * C_width + Col + g] = results[g];
+                }
+        }
+    
 }
 
 
@@ -68,10 +91,11 @@ long long GPU_matrix_multiplication(matrix<T> *A, matrix<T> *B, matrix<T> *C, in
 
     cudaMemcpy(d_mat_c, C->data, size_c, cudaMemcpyHostToDevice);
     cudaCheckError();
-
+    
+    
     dim3 blockSizes(block_size, block_size);
-    int grid_x = std::ceil(static_cast<double>(B->get_columns()) / static_cast<double>(blockSizes.x));
-    int grid_y = std::ceil(static_cast<double>(A->get_rows()) / static_cast<double>(blockSizes.y));
+    int grid_x = std::ceil(static_cast<double>(B->get_columns()) / static_cast<double>(blockSizes.x * granularity));
+    int grid_y = std::ceil(static_cast<double>(A->get_rows()) / static_cast<double>(blockSizes.y))+1;
 
     std::cout << "Total number of blocks: " << grid_x * grid_y << std::endl;
     std::cout << "Total number of threads: " << grid_x * grid_y * blockSizes.x * blockSizes.y << std::endl;
@@ -80,7 +104,7 @@ long long GPU_matrix_multiplication(matrix<T> *A, matrix<T> *B, matrix<T> *C, in
 
     std::chrono::high_resolution_clock::time_point start = get_time();
 
-    MatrixMulKernel<<<gridSizes, blockSizes>>>(d_mat_a, d_mat_b, d_mat_c, block_size, A->get_columns(), A->get_rows(), B->get_columns(), B->get_rows(), C->get_columns(), C->get_rows());
+    MatrixMulKernel<<<gridSizes, blockSizes>>>(d_mat_a, d_mat_b, d_mat_c, A->get_columns(), A->get_rows(), B->get_columns(), B->get_rows(), C->get_columns(), C->get_rows());
 
 
     // cuda device synchronize
