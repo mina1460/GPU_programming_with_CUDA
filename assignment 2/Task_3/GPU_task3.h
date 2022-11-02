@@ -18,6 +18,7 @@ void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_width, i
 
     int Row = by * tile_size + ty;
     int Col = granularity * (bx * tile_size + tx);
+    int temp = (bx * tile_size + tx);
     const int result_sz = granularity; 
     double results[result_sz] = {};
     for(int g = 0; g<granularity; g++){
@@ -31,27 +32,43 @@ void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_width, i
         else 
             ds_A[ty][tx] = 0.0;
 
-        // for(int g = 0 ; g< granularity ; g++)
-        // {
-        //     if(ph*tile_size + ty < A_width && Col + g < B_height)
-        //         ds_B[ty][(Col+g)%BLOCK_SIZE] = mat_b[(ph * tile_size + ty) * B_width + Col + g];
-          
-        // }
+        for(int g = 0 ; g< granularity ; g++)
+        {
+            if(ph*tile_size + ty < A_width && (Col + g)%BLOCK_SIZE < B_width)
+                {   
+                    printf("WHICH THREAD: ROW:%d, COL:%d\nty:%d, col + g:%d, (ph * tile_size + ty) * B_width + (Col + g):%d\n",Row, Col, ty, (Col + g)%BLOCK_SIZE, (ph * tile_size + ty) * B_width + (Col + g));
+                    ds_B[ty][(Col + g)%(BLOCK_SIZE)] = mat_b[(ph * tile_size + ty) * B_width + (Col + g)];
+                }  
+        }
             
         __syncthreads();
+        
+     
 
         for(int g = 0; g<granularity; g++)
             for(int k = 0; k < tile_size; k++)
             {
                 if(Row < A_height && Col + g < B_width && ph*tile_size + k < A_width && ph*tile_size + k < B_height)
-                    results[g] += ds_A[ty][k] * mat_b[( (ph) * tile_size + k) * B_width + Col + g];
+                    results[g] += ds_A[ty][k] * ds_B[k][(Col+g)%(BLOCK_SIZE)];
                 
             }
         __syncthreads();
     }
+
+          for(int i = 0; i< BLOCK_SIZE ; i++)
+        {
+            for(int j= 0 ; j< BLOCK_SIZE ; j++)
+                    printf("[%d][%d]=%f ",i,j,ds_B[i][j]);
+          printf("\n");
+        }
+          
+
     for(int g = 0; g<granularity; g++)
         if(Row < C_height && Col + g < C_width)
-            mat_c[Row * C_width + Col + g ] = results[g];
+            {
+                mat_c[Row * C_width + Col + g] = results[g];
+                
+            }
 }
 
 
