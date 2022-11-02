@@ -12,57 +12,46 @@ __global__
 void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_width, int A_height, int B_width, int B_height, int C_width, int C_height){
 
     //Using Tiling to improve the performance
-    
     __shared__ double ds_A[BLOCK_SIZE][BLOCK_SIZE];
     __shared__ double ds_B[BLOCK_SIZE][BLOCK_SIZE];
+    
 
     int Row = by * tile_size + ty;
-    int Col = (bx * tile_size + tx)*granularity;
-    const int NBytes = granularity;
+    int Col = granularity * (bx * tile_size + tx);
+    const int result_sz = granularity; 
+    double results[result_sz] = {};
+    for(int g = 0; g<granularity; g++){
+        results[g] = 0;
+    }
 
-    double results[NBytes];
-    #pragma unroll
-    for(int g = 0; g < granularity; g++)
-    { results[g] = 0.0; }
-
-    
     for(int ph = 0; ph < (A_width+tile_size - 1)/tile_size; ph++)
     {
         if(Row < A_height && ph*tile_size + tx < A_width)
             ds_A[ty][tx] = mat_a[Row * A_width + ph * tile_size + tx];
+        else 
+            ds_A[ty][tx] = 0.0;
 
-        for(int g = 0; g < granularity; g++)
-        {
-            if(Col + g < B_width && ph*tile_size + ty < B_height)
-                ds_B[ty][granularity*tx+g] = mat_b[(ph * tile_size + ty) * B_width + Col + g];
-            else 
-                ds_B[ty][granularity*tx+g] = 0.0;
+        // for(int g = 0 ; g< granularity ; g++)
+        // {
+        //     if(ph*tile_size + ty < A_width && Col + g < B_height)
+        //         ds_B[ty][(Col+g)%BLOCK_SIZE] = mat_b[(ph * tile_size + ty) * B_width + Col + g];
+          
+        // }
             
-        }
         __syncthreads();
-        for(int k = 0; k < tile_size; k++)
-        {
-            for(int g = 0 ; g < granularity; g++)
+
+        for(int g = 0; g<granularity; g++)
+            for(int k = 0; k < tile_size; k++)
             {
-            
-                    if( Row < A_height && Col + g < B_width && ph*tile_size + k < A_width && ph*tile_size + k < B_height)
-                        results[g] += ds_A[ty][k] * ds_B[k][granularity*tx+g];
+                if(Row < A_height && Col + g < B_width && ph*tile_size + k < A_width && ph*tile_size + k < B_height)
+                    results[g] += ds_A[ty][k] * mat_b[( (ph) * tile_size + k) * B_width + Col + g];
+                
             }
-        }
         __syncthreads();
-
     }
-    
-        
-    // #pragma unroll
-    for(int g = 0; g < granularity; g++)
-        {
-            if(Row < C_height && (Col + g) < C_width)
-                {
-                    mat_c[Row * C_width + Col + g] = results[g];
-                }
-        }
-    
+    for(int g = 0; g<granularity; g++)
+        if(Row < C_height && Col + g < C_width)
+            mat_c[Row * C_width + Col + g ] = results[g];
 }
 
 

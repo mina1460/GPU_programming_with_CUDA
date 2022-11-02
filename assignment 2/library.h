@@ -14,12 +14,12 @@
 #include "time_helper.h"
 #include "matrix.h"
 
-#define A_ROWS 2
-#define A_COLS 2
+#define A_ROWS 303
+#define A_COLS 302
 #define B_ROWS A_COLS
-#define B_COLS 2
-#define BLOCK_SIZE  2
-#define granularity 2
+#define B_COLS 125
+#define BLOCK_SIZE  32
+#define granularity 4
 
 
 template<typename T>
