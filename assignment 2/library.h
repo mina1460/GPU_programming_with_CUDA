@@ -13,13 +13,12 @@
 #include "GPU_utils.h"
 #include "time_helper.h"
 #include "matrix.h"
-#include "./Task_1/GPU_task1.h"
 
-#define A_ROWS 3000
-#define A_COLS 2500
+#define A_ROWS 1050
+#define A_COLS 1000
 #define B_ROWS A_COLS
-#define B_COLS 3000
-
+#define B_COLS 800
+#define BLOCK_SIZE 32
 
 
 

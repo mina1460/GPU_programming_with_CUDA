@@ -1,5 +1,5 @@
 #include "../library.h"
-
+#include "GPU_task1.h"
 
 
 int main(int argc, char** argv){
