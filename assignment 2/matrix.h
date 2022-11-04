@@ -53,10 +53,10 @@ class matrix{
             file << "\n";
             file.close();
         }
-        const int get_rows() const{
+        int get_rows() const{
             return rows; 
         }
-        const int get_columns() const{
+        int get_columns() const{
             return columns; 
         }
 };
@@ -66,13 +66,12 @@ template<typename T>
 float get_GFLOPS(matrix<T>& A, matrix<T>& B, long long time, time_unit t_unit){
     // returns the GFLOPS of a matrix multiplication
     // (N * P) * (P * M)
-    // GFLOPS = 2 * N × M × (2P−1)
+    // GFLOPS = N × M × (2P−1)
     float N = A.get_rows();
     float M = B.get_columns();
     float P = A.get_columns();
-    float flops = 2 * N * M * (2 * P - 1);
-    std::cout << "FLOPS: " << flops << "\n";
-
+    float flops = N * M * (2 * P - 1);
+    std::cout << "\nFLOPS: " << flops << "\n";
 
     float factor = 0;
     switch(t_unit){
@@ -91,7 +90,7 @@ float get_GFLOPS(matrix<T>& A, matrix<T>& B, long long time, time_unit t_unit){
         default:
             throw std::invalid_argument("Invalid time unit\n");
     }
-    std::cout << "Time in seconds: " << time * factor << "\n";
+    std::cout << "\nTime in seconds: " << time * factor << "\n";
     return flops / (factor * time);
     
 }

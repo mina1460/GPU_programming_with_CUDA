@@ -8,6 +8,8 @@ all:
 	nvcc ./Task_2/task2.cu -o ./Task_2/task2
 	nvcc ./Task_3/task3.cu -o ./Task_3/task3
 
+
+
 build_task1:
 	nvcc ./Task_1/task1.cu -o ./Task_1/task1
 
@@ -37,4 +39,26 @@ run_task3: build_task3
 	./Task_3/task3
 	@echo "\033[92mDone\033[0m"
 	@echo "********************************\n\n"
+
+run_all: build_task1 build_task2 build_task3
+	@echo "********************************"
+	@echo "\033[1;33mRunning - Task1 \033[0m"
+	./Task_1/task1
+	@echo "\033[92mDone\033[0m"
+	@echo "********************************\n\n"
+	@echo "********************************"
+	@echo "\033[1;33mRunning - Task2 \033[0m"
+	./Task_2/task2
+	@echo "\033[92mDone\033[0m"
+	@echo "********************************\n\n"
+	@echo "********************************"
+	@echo "\033[1;33mRunning - Task3 \033[0m"
+	./Task_3/task3
+	@echo "\033[92mDone\033[0m"
+	@echo "********************************\n\n"
+
 	
+clean:
+	rm -rf ./Task_1/task1
+	rm -rf ./Task_2/task2
+	rm -rf ./Task_3/task3

@@ -33,6 +33,8 @@ long long get_time_diff(std::chrono::high_resolution_clock::time_point start, st
             return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         case seconds:
             return std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+        default:
+            throw std::invalid_argument("Invalid time unit\n");
     }
 }
 

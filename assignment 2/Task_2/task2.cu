@@ -38,10 +38,10 @@ int main(int argc, char** argv){
 
     // report GFLOPS
     float gflops = get_GFLOPS(A, B, time_in_chosen_unit, time_unit);
-    std::cout << "CPU GFLOPS: " << gflops << std::endl;
+    std::cout << "\nCPU GFLOPS: " << gflops << std::endl;
 
     // GPU matrix multiplication
-    std::cout << "Starting GPU matrix multiplication..." << std::endl;
+    std::cout << "\nStarting GPU matrix multiplication..." << std::endl;
     
     start = get_time();
     int block_size = BLOCK_SIZE;
@@ -51,7 +51,7 @@ int main(int argc, char** argv){
     
     time_in_chosen_unit = get_time_diff(start, end, time_unit);
     
-    std::cout << "GPU matrix multiplication took " << time_in_chosen_unit << " " + unit_name(time_unit) << std::endl;
+    std::cout << "\nGPU matrix multiplication took " << time_in_chosen_unit << " " + unit_name(time_unit) << std::endl;
     
     
     // write matrix to file
@@ -59,17 +59,17 @@ int main(int argc, char** argv){
 
     // report GFLOPS
     gflops = get_GFLOPS(A, B, time_in_kernel, nanoseconds);
-    std::cout << "GPU GFLOPS of kernel only: " << gflops << std::endl;
+    std::cout << "\nGPU GFLOPS of kernel only: " << gflops << std::endl;
     
     gflops = get_GFLOPS(A, B, time_in_chosen_unit, time_unit);
-    std::cout << "GPU GFLOPS with copy: " << gflops << std::endl;
+    std::cout << "\nGPU GFLOPS with copy: " << gflops << std::endl;
 
     // compare matrices
-    std::cout << "Comparing matrices..." << std::endl;
+    std::cout << "\nComparing matrices..." << std::endl;
     if(compare_with_tolerance(C_CPU, C_GPU, 0.00001))
-        std::cout << "Matrices are equal" << std::endl;
+        std::cout << "\nMatrices are equal" << std::endl;
     else
-        std::cout << "Matrices are not equal" << std::endl;
+        std::cout << "\nMatrices are NOT equal" << std::endl;
 
     return 0;
 }

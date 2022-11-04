@@ -17,8 +17,8 @@ int main(int argc, char** argv){
     matrix<double> C_CPU(A_ROWS, B_COLS, "C_CPU");
     
     // generate matrices
-    A.auto_generate(250.0);
-    B.auto_generate(400.0);
+    A.auto_generate(30.0);
+    B.auto_generate(40.0);
 
     // CPU matrix multiplication 
     std::cout << "Starting CPU matrix multiplication..." << std::endl;
