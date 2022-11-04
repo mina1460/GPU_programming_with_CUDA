@@ -14,10 +14,10 @@
 #include "time_helper.h"
 #include "matrix.h"
 
-#define A_ROWS 400
-#define A_COLS 2001
+#define A_ROWS 10
+#define A_COLS 30
 #define B_ROWS A_COLS
-#define B_COLS 401
+#define B_COLS 30
 #define BLOCK_SIZE  32
 #define granularity 2
 

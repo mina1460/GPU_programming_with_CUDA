@@ -6,16 +6,18 @@
 
 __global__ 
 void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_rows, int A_cols, int B_rows, int B_cols, int C_rows, int C_cols){
+    
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
+    if ((row >= A_ROWS) || (col >= B_COLS)) return;
+
     double sum = 0;
-    if (row < A_rows && col < B_cols){
-        for (int i = 0; i < A_cols; i++){
-            sum += mat_a[row * A_cols + i] * mat_b[i * B_cols + col];
-        }
-        mat_c[row * C_cols + col] = sum;
+    for (int k=0; k < A_COLS; ++k)
+    {
+        sum += mat_a[row * A_COLS + k] * mat_b[k * B_COLS + col];
     }
+    mat_c[row * A_COLS + col] = sum;
 
 }
 
@@ -49,7 +51,7 @@ long long GPU_matrix_multiplication(matrix<T> *A, matrix<T> *B, matrix<T> *C, in
     int grid_x = std::ceil(static_cast<double>(B->get_columns()) / static_cast<double>(blockSizes.x));
     int grid_y = std::ceil(static_cast<double>(A->get_rows()) / static_cast<double>(blockSizes.y));
 
-    std::cout << "Total number of blocks: " << grid_x * grid_y << std::endl;
+    std::cout << "Total number of blocks: " << grid_x * grid_y <<std::endl;
     std::cout << "Total number of threads: " << grid_x * grid_y * blockSizes.x * blockSizes.y << std::endl;
 
     dim3 gridSizes(grid_x, grid_y);
