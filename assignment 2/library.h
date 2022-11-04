@@ -19,7 +19,7 @@
 #define B_ROWS A_COLS
 #define B_COLS 1711
 #define BLOCK_SIZE  16
-#define granularity 2
+#define granularity 4
 
 
 template<typename T>

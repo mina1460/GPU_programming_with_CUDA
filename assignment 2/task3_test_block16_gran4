@@ -1,0 +1,34 @@
+nvcc ./Task_3/task3.cu -o ./Task_3/task3
+********************************
+[1;33mRunning - Task3 [0m
+./Task_3/task3
+Starting...
+Dimensions of A: 1523x3232
+Dimensions of B: 3232x1711
+Starting CPU matrix multiplication...
+CPU matrix multiplication took 37351129958 nanoseconds
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 37.3511
+CPU GFLOPS: 4.509e+08
+Starting GPU matrix multiplication...
+Total number of blocks: 2592
+Total number of threads: 663552
+GPU matrix multiplication took 158775880 nanoseconds
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 0.031878
+GPU GFLOPS of kernel only: 5.28315e+11
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 0.158776
+GPU GFLOPS with copy: 1.06072e+11
+Comparing matrices...
+Matrices are equal
+[92mDone[0m
+********************************
+
+
