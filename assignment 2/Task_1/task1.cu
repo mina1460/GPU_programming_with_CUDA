@@ -17,8 +17,8 @@ int main(int argc, char** argv){
     matrix<double> C_CPU(A_ROWS, B_COLS, "C_CPU");
     
     // generate matrices
-    A.auto_generate(250.0);
-    B.auto_generate(400.0);
+    A.auto_generate(25.0);
+    B.auto_generate(40.0);
 
     // CPU matrix multiplication 
     std::cout << "\nStarting CPU matrix multiplication..." << std::endl;
@@ -65,7 +65,7 @@ int main(int argc, char** argv){
 
     // compare matrices
     std::cout << "Comparing matrices..." << std::endl;
-    if(compare_with_tolerance(C_CPU, C_GPU, 0.00001))
+    if(compare_with_tolerance(C_CPU, C_GPU, 0.0001))
         std::cout << "\nMatrices are equal" << std::endl;
     else
         std::cout << "\nMatrices are NOT equal" << std::endl;

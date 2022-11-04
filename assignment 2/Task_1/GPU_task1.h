@@ -7,18 +7,18 @@
 __global__ 
 void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_rows, int A_cols, int B_rows, int B_cols, int C_rows, int C_cols){
     
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if ((row >= A_ROWS) || (col >= B_COLS)) return;
-
-    double sum = 0;
-    for (int k=0; k < A_COLS; ++k)
-    {
-        sum += mat_a[row * A_COLS + k] * mat_b[k * B_COLS + col];
+    int i = blockIdx.y * blockDim.y + threadIdx.y;
+    int j = blockIdx.x * blockDim.x + threadIdx.x;    
+    
+    // m*n X n*p
+    if(i < A_ROWS && j < B_COLS){
+        double sum = 0;
+        for(int k = 0; k < A_COLS; k++){
+            sum += mat_a[i * A_COLS + k] * mat_b[k * B_COLS + j];
+        }
+        mat_c[i * B_COLS + j] = sum;
     }
-    mat_c[row * A_COLS + col] = sum;
-
+    
 }
 
 template <typename T> 
@@ -57,8 +57,8 @@ long long GPU_matrix_multiplication(matrix<T> *A, matrix<T> *B, matrix<T> *C, in
     dim3 gridSizes(grid_x, grid_y);
 
     std::chrono::high_resolution_clock::time_point start = get_time();
-
-    MatrixMulKernel<<<gridSizes, blockSizes>>>(d_mat_a, d_mat_b, d_mat_c, A->get_columns(), A->get_rows(), B->get_columns(), B->get_rows(), C->get_columns(), C->get_rows());
+    
+    MatrixMulKernel<<<gridSizes, blockSizes>>>(d_mat_a, d_mat_b, d_mat_c, A->get_rows(), A->get_columns(), B->get_rows(), B->get_columns(), C->get_rows(), C->get_columns());
 
 
     // cuda device synchronize
