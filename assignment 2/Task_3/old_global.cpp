@@ -13,64 +13,62 @@ void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_width, i
 
     //Using Tiling to improve the performance
     __shared__ double ds_A[BLOCK_SIZE][BLOCK_SIZE];
-    __shared__ double ds_B[BLOCK_SIZE][BLOCK_SIZE * 2];
+    __shared__ double ds_B[BLOCK_SIZE][BLOCK_SIZE];
     
-    int Row = (by * tile_size) + ty;
-    int Col = granularity * (bx * tile_size) + tx;
 
+    int Row = by * tile_size + ty;
+    int Col = granularity * (bx * tile_size + tx);
+    int temp = (bx * tile_size + tx);
     const int result_sz = granularity; 
     double results[result_sz] = {};
+    for(int g = 0; g<granularity; g++){
+        results[g] = 0;
+    }
 
-
-    for(int start_tile = 0; start_tile < A_width; start_tile+= BLOCK_SIZE)
+    for(int ph = 0; ph < (A_width+tile_size - 1)/tile_size; ph++)
     {
-        // Just enforce the thread to load gran elements from the first Matrix
-        // for(int g = 0 ; g < granularity * BLOCK_SIZE ; g+=BLOCK_SIZE)
-        // {   
-        //     if(Row + g < A_height && start_tile + tx < A_width)
-        //     {
-        //         ds_A[ty + g][tx] = mat_a[(Row + g) * A_width + (start_tile + tx)];
-        //     }
-        //     else ds_A[ty + g][tx] = 0.0;
-        // }
-        if(Row < A_height && start_tile + tx < A_width)
-            ds_A[ty][tx] = mat_a[Row * A_width + start_tile + tx];
+        if(Row < A_height && ph*tile_size + tx < A_width)
+            ds_A[ty][tx] = mat_a[Row * A_width + ph * tile_size + tx];
         else 
             ds_A[ty][tx] = 0.0;
 
-        // Samething applies to the column 
-        for(int g = 0 ; g < granularity * BLOCK_SIZE ; g+=BLOCK_SIZE)
+        for(int g = 0 ; g< granularity ; g++)
         {
-            if(Col + g < B_width && start_tile + ty < B_height)
-            {
-                ds_B[ty][tx + g] = mat_b[(start_tile + ty) * B_width + (Col + g)];
-            }
-            else 
-                ds_B[ty][tx + g] = 0.0; 
+            if(ph*tile_size + ty < A_width && (Col + g)%BLOCK_SIZE < B_width)
+                {   
+                    printf("WHICH THREAD: ROW:%d, COL:%d\nty:%d, col + g:%d, (ph * tile_size + ty) * B_width + (Col + g):%d\n",Row, Col, ty, (Col + g)%BLOCK_SIZE, (ph * tile_size + ty) * B_width + (Col + g));
+                    ds_B[ty][(Col + g)%(BLOCK_SIZE)] = mat_b[(ph * tile_size + ty) * B_width + (Col + g)];
+                }  
         }
-        __syncthreads(); 
+            
+        __syncthreads();
+        
+     
 
-        for(int k = 0; k < tile_size; k++)
+      
+            for(int k = 0; k < tile_size; k++)
             {
-                for(int g_y = 0 ; g_y < granularity; g_y++)
-                {
-                    results[g_y] += ds_A[ty][k] * ds_B[k][tx + g_y * BLOCK_SIZE]; 
-                }
+                if(Row < A_height && Col + g < B_width && ph*tile_size + k < A_width && ph*tile_size + k < B_height)
+                    results[g] += ds_A[ty][k] * ds_B[k][(Col+g)%(BLOCK_SIZE)];
                 
             }
         __syncthreads();
     }
 
-    //Updating 
-    for(int g_y = 0 ; g_y < granularity; g_y++)
-    {
-        if(Row < C_height && Col + g_y * BLOCK_SIZE < C_width)
+          for(int i = 0; i< BLOCK_SIZE ; i++)
         {
-            mat_c[Row * C_width + Col + g_y * BLOCK_SIZE] = results[g_y];
+            for(int j= 0 ; j< BLOCK_SIZE ; j++)
+                    printf("[%d][%d]=%f ",i,j,ds_B[i][j]);
+          printf("\n");
         }
-    }
+          
 
-    
+    for(int g = 0; g<granularity; g++)
+        if(Row < C_height && Col + g < C_width)
+            {
+                mat_c[Row * C_width + Col + g] = results[g];
+                
+            }
 }
 
 
@@ -103,7 +101,7 @@ long long GPU_matrix_multiplication(matrix<T> *A, matrix<T> *B, matrix<T> *C, in
     
     dim3 blockSizes(block_size, block_size);
     int grid_x = std::ceil(static_cast<double>(B->get_columns()) / static_cast<double>(blockSizes.x * granularity));
-    int grid_y = std::ceil(static_cast<double>(A->get_rows()) / static_cast<double>(blockSizes.y));
+    int grid_y = std::ceil(static_cast<double>(A->get_rows()) / static_cast<double>(blockSizes.y))+1;
 
     std::cout << "Total number of blocks: " << grid_x * grid_y << std::endl;
     std::cout << "Total number of threads: " << grid_x * grid_y * blockSizes.x * blockSizes.y << std::endl;
