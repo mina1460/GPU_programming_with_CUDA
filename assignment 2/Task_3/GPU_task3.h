@@ -28,7 +28,7 @@ void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_width, i
         else 
             ds_A[ty][tx] = 0.0;
 
-        // Samething applies to the column 
+        // Enforce the thread to load more than one element from B matrix
         #pragma unroll
         for(int g = 0 ; g < granularity * BLOCK_SIZE ; g+=BLOCK_SIZE)
         {
