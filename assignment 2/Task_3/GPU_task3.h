@@ -13,55 +13,43 @@ void MatrixMulKernel(double* mat_a, double* mat_b, double* mat_c, int A_width, i
 
     //Using Tiling to improve the performance
     __shared__ double ds_A[BLOCK_SIZE][BLOCK_SIZE];
-    __shared__ double ds_B[BLOCK_SIZE][BLOCK_SIZE * 2];
+    __shared__ double ds_B[BLOCK_SIZE][BLOCK_SIZE * granularity];
     
     int Row = (by * tile_size) + ty;
     int Col = granularity * (bx * tile_size) + tx;
 
-    const int result_sz = granularity; 
-    double results[result_sz] = {};
+    double results[granularity] = {};
 
 
     for(int start_tile = 0; start_tile < A_width; start_tile+= BLOCK_SIZE)
     {
-        // Just enforce the thread to load gran elements from the first Matrix
-        // for(int g = 0 ; g < granularity * BLOCK_SIZE ; g+=BLOCK_SIZE)
-        // {   
-        //     if(Row + g < A_height && start_tile + tx < A_width)
-        //     {
-        //         ds_A[ty + g][tx] = mat_a[(Row + g) * A_width + (start_tile + tx)];
-        //     }
-        //     else ds_A[ty + g][tx] = 0.0;
-        // }
         if(Row < A_height && start_tile + tx < A_width)
             ds_A[ty][tx] = mat_a[Row * A_width + start_tile + tx];
         else 
             ds_A[ty][tx] = 0.0;
 
         // Samething applies to the column 
+        #pragma unroll
         for(int g = 0 ; g < granularity * BLOCK_SIZE ; g+=BLOCK_SIZE)
         {
             if(Col + g < B_width && start_tile + ty < B_height)
-            {
                 ds_B[ty][tx + g] = mat_b[(start_tile + ty) * B_width + (Col + g)];
-            }
             else 
                 ds_B[ty][tx + g] = 0.0; 
         }
         __syncthreads(); 
-
+        #pragma unroll
         for(int k = 0; k < tile_size; k++)
-            {
+            {  
                 for(int g_y = 0 ; g_y < granularity; g_y++)
-                {
                     results[g_y] += ds_A[ty][k] * ds_B[k][tx + g_y * BLOCK_SIZE]; 
-                }
                 
             }
         __syncthreads();
     }
 
     //Updating 
+    #pragma unroll
     for(int g_y = 0 ; g_y < granularity; g_y++)
     {
         if(Row < C_height && Col + g_y * BLOCK_SIZE < C_width)
