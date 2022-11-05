@@ -18,7 +18,7 @@
 #define A_COLS 3232
 #define B_ROWS A_COLS
 #define B_COLS 1711
-#define BLOCK_SIZE  16
+#define BLOCK_SIZE  32
 #define granularity 4
 
 

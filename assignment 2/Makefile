@@ -20,6 +20,10 @@ run_task1: build_task1
 	@echo "\033[92mDone\033[0m"
 	@echo "********************************\n\n"
 
+
+build_task1_lowReg:
+	nvcc ./Task_1/task1_lowreg.cu -o ./Task_1/task1_lowreg
+
 build_task2: 
 	nvcc ./Task_2/task2.cu -o ./Task_2/task2
 
