@@ -3,6 +3,8 @@
         "*.tcc": "cpp",
         "chrono": "cpp",
         "algorithm": "cpp",
-        "stdexcept": "cpp"
+        "stdexcept": "cpp",
+        "vector": "cpp",
+        "ostream": "cpp"
     }
 }
