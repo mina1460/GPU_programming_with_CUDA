@@ -8,6 +8,21 @@ using namespace cimg_library;
 using namespace std;
 
 
+struct Point {
+    int x;
+    int y;
+    Point(int x, int y) : x(x), y(y) {}
+};
+
+struct query{
+    Point p1;
+    Point p2;
+    Point p3;
+    Point p4;
+    query(Point p1, Point p2, Point p3, Point p4) : p1(p1), p2(p2), p3(p3), p4(p4) {}
+};
+
+
 void compute_summed_area_table(int32_t* input_values, int32_t* output_values, int img_width, int img_height){
     int top_left = 0;
     int left = 0; 
@@ -64,9 +79,11 @@ int main(int argc, char* argv[]){
         cout << "Usage: " << argv[0] << " <img_file_path>" << endl;
         return -1;
     }
+    
+    test_compute_summed_area_table();
 
     string img_path = argv[1];
-    // open the image with cimg library
+
     CImg<int32_t> img(img_path.c_str());
 
     // get the image dimensions
@@ -85,15 +102,45 @@ int main(int argc, char* argv[]){
 
     compute_summed_area_table(orig_values, result_values, width, height);
 
-    CImg<int32_t> result_img(result_values, width, height, depth, 1, true);
-    // for (int i = 0; i < height; i++) {
-    //     for (int j = 0; j < width; j++) {
-    //         cout << result_values[i*width + j] << " ";
-    //     }
-    //     cout << endl;
-    // }
-    test_compute_summed_area_table();
-    result_img.save("summed_area_table_result.jpeg");
+    
+    cout << "Enter the number of queries to execute : " << endl;
+    int number_of_queries = 0; 
+    cin >> number_of_queries;
+    
+    vector<query> queries_vector(number_of_queries);
+
+    for(int i=0; i<number_of_queries; i++){
+        cout << "Enter query " << i <<" :" << endl;
+        cout << "Enter A(x1,y1) " << endl;
+        int x1, y1;
+        cin >> x1 >> y1;
+        cout << "Enter B(x2,y2) " << endl;
+        int x2, y2;
+        cin >> x2 >> y2;
+        cout << "Enter C(x3,y3) " << endl;
+        int x3, y3;
+        cin >> x3 >> y3;
+        cout << "Enter D(x4,y4) " << endl;
+        int x4, y4;
+        cin >> x4 >> y4;
+        queries_vec[i] = query(Point(x1, y1), Point(x2, y2), Point(x3, y3), Point(x4, y4));
+    }
+
+    for(auto q: queries_vec){
+        int32_t A = result_values[q.p1.x * width + q.p1.y];
+        int32_t B = result_values[q.p2.x * width + q.p2.y];
+        int32_t C = result_values[q.p3.x * width + q.p3.y];
+        int32_t D = result_values[q.p4.x * width + q.p4.y];
+        int32_t sum = A + D - B - C;
+        cout << "A(x1,y1) = " << A.x << " " << A.y << endl;
+        cout << "B(x2,y2) = " << B.x << " " << B.y << endl;
+        cout << "C(x3,y3) = " << C.x << " " << C.y << endl;
+        cout << "D(x4,y4) = " << D.x << " " << D.y << endl;
+        cout << "Sum of the query is " << sum << endl;
+    }
+    
+    
+    // result_img.save("summed_area_table_result.jpeg");
 
     delete[] result_values;
 
