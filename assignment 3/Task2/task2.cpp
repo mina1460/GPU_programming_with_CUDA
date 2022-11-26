@@ -4,22 +4,26 @@
 #define cimg_display 1
 #define cimg_use_jpeg
 #include "CImg.h"
+#include <vector>
 using namespace cimg_library;
 using namespace std;
 
 
-struct Point {
-    int x;
-    int y;
-    Point(int x, int y) : x(x), y(y) {}
+class Point {
+    public:
+        int x;
+        int y;
+        Point(int x, int y) : x(x), y(y) {}
 };
 
-struct query{
-    Point p1;
-    Point p2;
-    Point p3;
-    Point p4;
-    query(Point p1, Point p2, Point p3, Point p4) : p1(p1), p2(p2), p3(p3), p4(p4) {}
+class query{
+    public:
+        Point p1;
+        Point p2;
+        Point p3;
+        Point p4;
+        query(Point p1, Point p2, Point p3, Point p4) : p1(p1), p2(p2), p3(p3), p4(p4) {}
+
 };
 
 
@@ -72,6 +76,41 @@ void test_compute_summed_area_table(){
     }
     cout << endl << "Test passed" << endl;
 }
+int intensity_sum(int32_t* summed_area_table, query q, int width, int height){
+    
+        if(q.p1.x < 0 || q.p1.y < 0 || q.p2.x < 0 || q.p2.y < 0 || q.p3.x < 0 || q.p3.y < 0 || q.p4.x < 0 || q.p4.y < 0){
+            cout << "Error: negative index" << endl;
+            return -1;
+        }
+
+        if(q.p1.x >= width || q.p1.y >= height || q.p2.x >= width || q.p2.y >= height || q.p3.x >= width || q.p3.y >= height || q.p4.x >= width || q.p4.y >= height){
+            cout << "Error: index out of bounds" << endl;
+            return -1;
+        }
+
+        int32_t A = summed_area_table[q.p1.x * width + q.p1.y];
+        int32_t B = summed_area_table[q.p2.x * width + q.p2.y];
+        int32_t C = summed_area_table[q.p3.x * width + q.p3.y];
+        int32_t D = summed_area_table[q.p4.x * width + q.p4.y];
+        int32_t sum = A + D - B - C;
+        return sum;
+}
+
+int test_intensity_sum(){
+    int32_t correct_values[16] = {5,7,12,14, 8,16,24,32, 13, 23, 36, 46, 16, 32, 48, 64};
+    query q(Point(1,1), Point(1,3), Point(3,1), Point(3,3));
+    int32_t result = intensity_sum(correct_values, q, 4, 4);
+    if(result != 16){
+        cout << "Error, expected 16, got " << result << endl;
+        return -1;
+    }
+    else{
+        cout << "Test passed!!" << endl;
+        return 0;
+    }
+}
+
+
 
 int main(int argc, char* argv[]){
     if(argc != 2)
@@ -81,7 +120,7 @@ int main(int argc, char* argv[]){
     }
     
     test_compute_summed_area_table();
-
+    test_intensity_sum();
     string img_path = argv[1];
 
     CImg<int32_t> img(img_path.c_str());
@@ -97,17 +136,17 @@ int main(int argc, char* argv[]){
     cout << "image basename: " << img_basename << endl;
     
     // create a new image to store the result
-    int* orig_values = img.data();
-    int* result_values = (int*) calloc(width * height * depth, sizeof(int));
-
+    int32_t* orig_values = img.data();
+    int32_t* result_values = (int32_t*) calloc(width * height * depth, sizeof(int));
+    
     compute_summed_area_table(orig_values, result_values, width, height);
-
+    
     
     cout << "Enter the number of queries to execute : " << endl;
     int number_of_queries = 0; 
     cin >> number_of_queries;
     
-    vector<query> queries_vector(number_of_queries);
+    vector<query> queries_vec;
 
     for(int i=0; i<number_of_queries; i++){
         cout << "Enter query " << i <<" :" << endl;
@@ -123,24 +162,20 @@ int main(int argc, char* argv[]){
         cout << "Enter D(x4,y4) " << endl;
         int x4, y4;
         cin >> x4 >> y4;
-        queries_vec[i] = query(Point(x1, y1), Point(x2, y2), Point(x3, y3), Point(x4, y4));
+        Point p1(x1, y1);
+        Point p2(x2, y2);
+        Point p3(x3, y3);
+        Point p4(x4, y4);
+        queries_vec.push_back(query(p1, p2, p3, p4));
     }
-
+    
     for(auto q: queries_vec){
-        int32_t A = result_values[q.p1.x * width + q.p1.y];
-        int32_t B = result_values[q.p2.x * width + q.p2.y];
-        int32_t C = result_values[q.p3.x * width + q.p3.y];
-        int32_t D = result_values[q.p4.x * width + q.p4.y];
-        int32_t sum = A + D - B - C;
-        cout << "A(x1,y1) = " << A.x << " " << A.y << endl;
-        cout << "B(x2,y2) = " << B.x << " " << B.y << endl;
-        cout << "C(x3,y3) = " << C.x << " " << C.y << endl;
-        cout << "D(x4,y4) = " << D.x << " " << D.y << endl;
-        cout << "Sum of the query is " << sum << endl;
+        int32_t result = intensity_sum(result_values, q, width, height);
+        cout << "Result: " << result << endl;
     }
     
     
-    // result_img.save("summed_area_table_result.jpeg");
+    
 
     delete[] result_values;
 
