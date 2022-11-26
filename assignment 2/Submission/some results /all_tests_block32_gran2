@@ -1,0 +1,115 @@
+nvcc ./Task_1/task1.cu -o ./Task_1/task1
+nvcc ./Task_2/task2.cu -o ./Task_2/task2
+nvcc ./Task_3/task3.cu -o ./Task_3/task3
+********************************
+[1;33mRunning - Task1 [0m
+./Task_1/task1
+Starting...
+Dimensions of A: 1523x3232
+Dimensions of B: 3232x1711
+
+Starting CPU matrix multiplication...
+CPU matrix multiplication took 38854168604 nanoseconds
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 38.8542
+
+CPU GFLOPS: 4.33457e+08
+
+Starting GPU matrix multiplication...
+Total number of blocks: 2592
+Total number of threads: 2654208
+GPU matrix multiplication took 126222238 nanoseconds
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 0.031446
+
+GPU GFLOPS of kernel only: 5.35574e+11
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 0.126222
+
+GPU GFLOPS with copy: 1.33428e+11
+Comparing matrices...
+
+Matrices are equal
+[92mDone[0m
+********************************
+
+
+********************************
+[1;33mRunning - Task2 [0m
+./Task_2/task2
+Starting...
+Dimensions of A: 1523x3232
+Dimensions of B: 3232x1711
+Starting CPU matrix multiplication...
+CPU matrix multiplication took 39147475633 nanoseconds
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 39.1475
+
+CPU GFLOPS: 4.3021e+08
+
+Starting GPU matrix multiplication...
+Total number of blocks: 2592
+Total number of threads: 2654208
+
+GPU matrix multiplication took 134484166 nanoseconds
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 0.0343415
+
+GPU GFLOPS of kernel only: 4.90416e+11
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 0.134484
+
+GPU GFLOPS with copy: 1.25231e+11
+
+Comparing matrices...
+
+Matrices are equal
+[92mDone[0m
+********************************
+
+
+********************************
+[1;33mRunning - Task3 [0m
+./Task_3/task3
+Starting...
+Dimensions of A: 1523x3232
+Dimensions of B: 3232x1711
+Starting CPU matrix multiplication...
+CPU matrix multiplication took 38415860821 nanoseconds
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 38.4159
+CPU GFLOPS: 4.38403e+08
+Starting GPU matrix multiplication...
+Total number of blocks: 1296
+Total number of threads: 1327104
+GPU matrix multiplication took 144913071 nanoseconds
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 0.0359325
+GPU GFLOPS of kernel only: 4.68702e+11
+
+FLOPS: 1.68416e+10
+
+Time in seconds: 0.144913
+GPU GFLOPS with copy: 1.16219e+11
+Comparing matrices...
+Matrices are equal
+[92mDone[0m
+********************************
+
+
