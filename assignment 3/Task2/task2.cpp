@@ -140,7 +140,9 @@ int main(int argc, char* argv[]){
     int32_t* result_values = (int32_t*) calloc(width * height * depth, sizeof(int));
     
     compute_summed_area_table(orig_values, result_values, width, height);
-    
+
+    // Add the GPU one here 
+        
     
     cout << "Enter the number of queries to execute : " << endl;
     int number_of_queries = 0; 
