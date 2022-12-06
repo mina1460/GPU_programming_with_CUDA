@@ -4,6 +4,7 @@
 #define cimg_display 1
 #define cimg_use_jpeg
 #include "CImg.h"
+#include <cuda_runtime.h>
 #include <vector>
 using namespace cimg_library;
 using namespace std;
