@@ -11,15 +11,20 @@ using namespace std;
 
 
 #define MAX_MASK_SIZE 9
-
 #define MAX_MASK_HEIGHT 3
 #define MAX_MASK_WIDTH 3
-
-#define O_TILE_WIDTH 9
 
 __constant__ float d_mask[MAX_MASK_SIZE];
 
 #define TILE_SIZE 8
+#define BLOCK_SIZE ( TILE_SIZE + MAX_MASK_WIDTH - 1 )
+
+#define cudaCheckError() {                                                                  \
+ cudaError_t e=cudaGetLastError();                                                          \
+ if(e!=cudaSuccess) {                                                                       \
+   printf("Cuda failure %s:%d: '%s'\n",__FILE__,__LINE__,cudaGetErrorString(e));            \
+   exit(0);                                                                                 \
+ }      
 
 const float blur_kernel[3][3] = {
     {0.0625, 0.125, 0.0625},
@@ -141,13 +146,15 @@ __global__ void convolution_2D_tiled_kernel(float *d_input, float *d_output, int
 __global__ void convolution_output_tiling_2D_kernel(float *d_input, float *d_output, int width, int height) {
     int tx = threadIdx.x;
     int ty = threadIdx.y;
-    int row_o = blockIdx.y*O_TILE_WIDTH + ty; 
-    int col_o = blockIdx.x*O_TILE_WIDTH + tx;
+    
+    int row_o = blockIdx.y * TILE_SIZE + ty; 
+    int col_o = blockIdx.x * TILE_SIZE + tx;
     
     int row_i = row_o - MAX_MASK_WIDTH/2; 
     int col_i = col_o - MAX_MASK_WIDTH/2;
-    
+    // this is the same block width = tile size + mask width - 1
     __shared__ float N_ds[TILE_SIZE+MAX_MASK_WIDTH-1][TILE_SIZE+MAX_MASK_HEIGHT-1];
+    // grid size is width / tile size
     if(row_i < 0) row_i = 0;
     if(row_i >= height) row_i = height - 1;
     if(col_i < 0) col_i = 0;
@@ -157,10 +164,10 @@ __global__ void convolution_output_tiling_2D_kernel(float *d_input, float *d_out
     __syncthreads();
 
     float output = 0.0f;
-    if(ty < O_TILE_WIDTH && tx < O_TILE_WIDTH){
+    if(ty < TILE_SIZE && tx < TILE_SIZE){
         for(int i = 0; i < MAX_MASK_WIDTH; i++) { 
             for(int j = 0; j < MAX_MASK_WIDTH; j++) {
-                output += d_mask[i][j] * N_ds[i+ty][j+tx]; 
+                output += d_mask[i*MAX_MASK_WIDTH+j] * N_ds[i+ty][j+tx]; 
             }
         }
     
@@ -171,28 +178,48 @@ __global__ void convolution_output_tiling_2D_kernel(float *d_input, float *d_out
 }
     
     
-void GPU_apply_convolution_kernel(CImg<float> &h_image, const float *h_mask) {
+void GPU_apply_convolution_kernel(CImg<float> &h_image, const float *h_mask, float* output) {
 
     float *d_image;
     float *d_kernel;
     float *d_result;
+    
     cuda_malloc((void **)&d_image, h_image.size() * sizeof(float));
+    cudaCheckError();
+    
     // copy filter to symbol memory
     cuda_malloc((void **)&d_result, h_image.size() * sizeof(float));
+    cudaCheckError();
 
     // copy image to device
     cudaMemcpy(d_image, h_image.data(), image.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaCheckError();
+
     // and copy filter to static memory
     cudaMemcpyToSymbol(d_mask, h_mask, 9 * sizeof(float));
-
-
-    // set up the execution configuration
-    dim3 dimBlock(TILE_SIZE, TILE_SIZE);
-    dim3 dimGrid((h_image.width() + dimBlock.x - 1) / dimBlock.x, (h_image.height() + dimBlock.y - 1) / dimBlock.y);
+    cudaCheckError();
 
     
+    dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
+    dim3 dimGrid(ceil((float)h_image.width() / TILE_SIZE), ceil((float)h_image.height() / TILE_SIZE));
 
+    convolution_output_tiling_2D_kernel<<<dimGrid, dimBlock>>>(d_image, d_result, h_image.width(), h_image.height());
+    
+    cudaDeviceSynchronize();
+    cudaCheckError();
+    
+    // copy result back to host
+    
+    cudaMemcpy(output, d_result, h_image.size() * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaCheckError();
+    
+    cudaFree(d_image); 
+    cudaCheckError();
+    
+    cudaFree(d_result);
+    cudaCheckError();
 
+    return;
 }
 
 
@@ -224,6 +251,16 @@ void apply_convolution_kernel(float* input_data, float* output_data, const float
             output_data[output_index] = p_value;
         }
     }
+}
+
+bool compare_with_tolerance(float* a, float* b, int size, float tolerance){
+    for(int i=0; i < size; i++){
+        if(abs(a[i] - b[i]) > tolerance){
+            cout << "a[" << i << "] = " << a[i] << " b[" << i << "] = " << b[i] << endl;
+            return false;
+        }
+    }
+    return true;
 }
 
 
@@ -297,6 +334,16 @@ int main(int argc, char *argv[])
     result_img.save(result_img_path.c_str());
     cout << "result image saved to " << result_img_path << endl;    
     
+    float* gpu_result_values = new float[width * height * depth];
+    GPU_apply_convolution_kernel(img, kernel, gpu_result_values);
+
+    CImg<float> gpu_result_img(gpu_result_values, width, height, 1, depth);
+    string gpu_result_img_path = img_basename + "_" + kernel_names[kernel_choice] + "_gpu.jpeg";
+    gpu_result_img.save(gpu_result_img_path.c_str());
+    cout << "gpu result image saved to " << gpu_result_img_path << endl;
+
+
+    bool res = compare_with_tolerance(result_values, gpu_result_values, width * height * depth, 1e-3);
     delete[] result_values;
     return 0;
 }
