@@ -1,16 +1,77 @@
-#ifndef GPU_TASK2_GPU_H
-#define GPU_TASK2_GPU_H
 #include "GPU_utils.h"
 #define sqrt_needed_threads 16 // sqrt(512/2)
-#define i blockIdx.x * blockDim.x + threadIdx.x
-#define j blockIdx.y * blockDim.y + threadIdx.y
-#define sectionIdx blockIdx.y * blockDim.x + blockIdx.x
+
 
 #define needed_threads 256
 #define block_width needed_threads
 
 
-__global__ void scanRows(int32_t * input_matrix, int32_t * result_matrix, int img_width, int img_height)
+__global__ void scanRowsKernel(int32_t * input_matrix, int32_t * result_matrix, int img_width, int img_height)
+{
+        /*
+            (1) Each thread has some sequential Work to be done
+            (2) Then, using the scan algorithm, each thread will add its work to the previous thread's work
+            (3) The result will be stored in the result_matrix
+        */
+        int section_length = ceil(float(img_width)/blockDim.x);
+        int row_number         = blockIdx.x;
+        int start_idx          = section_length * threadIdx.x;
+        int end_idx             = min(start_idx + section_length - 1, img_width - 1);
+
+        __shared__ int32_t shared_memory[block_width];
+
+        if(start_idx < img_width)
+        {
+            // First phase: Sequential - normal prefix sum in this section
+            result_matrix[row_number * img_width + start_idx] = input_matrix[row_number * img_width + start_idx];
+            for(int idx = start_idx+1 ; idx<=end_idx ; idx++)
+            {
+                if(idx <img_width)
+                    result_matrix[row_number * img_width + idx] = result_matrix[row_number * img_width + idx - 1] + input_matrix[row_number * img_width + idx];
+            } 
+            __syncthreads();
+
+            // Second phase: Parallel - 
+            //                          (1) Add the last element of the previous section to the shared memory
+            //                          (2) Do prefix sum to this shared memory
+
+            if(end_idx < img_width)
+                shared_memory[threadIdx.x] = result_matrix[row_number * img_width + end_idx];
+            else 
+                shared_memory[threadIdx.x] = 0;
+
+            for(int stride = 1 ; stride < blockDim.x ; stride *= 2)
+            {
+                __syncthreads();
+                if(threadIdx.x >= stride)
+                {
+                    int temp = shared_memory[threadIdx.x - stride] + shared_memory[threadIdx.x];
+                    __syncthreads();
+                    shared_memory[threadIdx.x] = temp;
+                }
+            }
+
+            // printf("shared_memory[threadIdx.x] = %d", shared_memory[threadIdx.x]);
+
+            __syncthreads();
+
+            // Third phase: Each sharedMemory value is added to the next section of the result matrix
+            int32_t temp = 0; 
+            if(threadIdx.x > 0)
+                temp = shared_memory[threadIdx.x - 1];
+
+            
+            for(int idx = start_idx ; idx <= end_idx ; idx++)
+            {
+                if(idx < img_width)
+                    result_matrix[row_number * img_width + idx] += temp;
+            }
+
+
+        }
+}
+
+__global__ void scanColumnsKernel(int32_t * result_matrix, int img_width, int img_height)
 {
         /*
             (1) Each thread has some sequential Work to be done
@@ -18,54 +79,116 @@ __global__ void scanRows(int32_t * input_matrix, int32_t * result_matrix, int im
             (3) The result will be stored in the result_matrix
         */
 
-        int number_of_sections = ceil(float(block_width)/blockDim.y);
-        int row_number         = blockIdx.y;
+        int section_length = ceil(float(block_width)/blockDim.x);
+        int col_number         = blockIdx.x;
 
-        int start_idx = number_of_sections * threadIdx.y;
-        int end_idx   = min(start_idx + number_of_sections - 1, img_width - 1);
+        int start_idx = section_length * threadIdx.x;
+        int end_idx   = min(start_idx + section_length - 1, img_height - 1);
 
         __shared__ int32_t shared_memory[block_width];
 
-        if(start_idx < img_width)
+        if(start_idx < img_height)
         {
             // First phase: Sequential - normal prefix sum in this section
 
-            result_matrix[row_number * img_width + start_idx] = input_matrix[row_number * img_width + start_idx];
             for(int idx = start_idx+1 ; idx<=end_idx ; idx++)
             {
                 if(idx <img_width)
-                    result_matrix[row_number * img_width + idx] = result_matrix[row_number * img_width + idx - 1] + input_matrix[row_number * img_width + idx];
+                    result_matrix[idx * img_width + start_idx] += result_matrix[idx * img_width + start_idx - 1];
             } 
-        }
-        __syncthreads();
+            __syncthreads();
 
-        // Second phase: Parallel - 
-        //                          (1) Add the last element of the previous section to the shared memory
-        //                          (2) Do prefix sum to this shared memory
+            // Second phase: Parallel - 
+            //                          (1) Add the last element of the previous section to the shared memory
+            //                          (2) Do prefix sum to this shared memory
 
-        if(end_idx < img_width)
-        {
-            shared_memory[thread_idx.y] = result_matrix[row_number * img_width + end_idx];
-        }
-        else 
-        {
-            shared_memory[thread_idx.y] = 0;
-        }
+            if(end_idx < img_height)
+            {
+                shared_memory[threadIdx.x] = result_matrix[end_idx * img_width + col_number];
+            }
+            else 
+            {
+                shared_memory[threadIdx.x] = 0;
+            }
 
-        // Do the prefix using Kogge-Stone algorithm
+            // Do the prefix using Kogge-Stone algorithm
 
-        for(int stride = 1 ; stride < blockDim.y ; stride *= 2)
-        {
-            if(threadIdx.y >= stride)
+            for(int stride = 1 ; stride < blockDim.x ; stride *= 2)
             {
                 __syncthreads();
-                int temp = shared_memory[threadIdx.y - stride] + shared_memory[threadIdx.y];
-                __syncthreads();
-                shared_memory[threadIdx.y] = temp;
+                if(threadIdx.x >= stride)
+                {
+                    // __syncthreads();
+                    int temp = shared_memory[threadIdx.x - stride] + shared_memory[threadIdx.x];
+                    __syncthreads();
+                    shared_memory[threadIdx.x] = temp;
+                }
+            }
+
+            __syncthreads();
+
+            // Third phase: Each sharedMemory value is added to the next section of the result matrix
+            int32_t temp = 0; 
+            if(threadIdx.x > 0)
+                temp = shared_memory[threadIdx.x - 1];
+
+            
+            for(int idx = start_idx ; idx <= end_idx ; idx++)
+            {
+                if(idx < img_height && col_number < img_width)
+                    result_matrix[idx * img_width + col_number] += temp;
             }
         }
-        
 
+    // printf("Thread %d, %d finished", threadIdx.x, blockIdx.x);
+    return;
 }
 
 
+
+long long GPU_summed_area_table(int32_t* input_matrix, int32_t* result_image, int img_width, int img_height)
+{
+    int32_t* original_matrix;    
+    int32_t* result_matrix; 
+
+    int matrixSize = img_width * img_height * sizeof(int32_t);
+
+    cudaMalloc((void **)&original_matrix, matrixSize);
+    cudaCheckError();
+
+    cudaMalloc((void **)&result_matrix, matrixSize);
+    cudaCheckError();
+
+
+    cudaMemcpy(original_matrix, input_matrix, matrixSize, cudaMemcpyHostToDevice);
+    cudaCheckError();
+    
+    // As an assumption, we will use 1 block for each row. 
+    //We can extend further by using multiple blocks for each row, but we will need less Grid Size.
+
+    // The question has mentioned that the matrix will be square (num of rows = num of columns)
+    dim3 dimBlock(block_width);
+    dim3 dimGrid(img_height);
+    dim3 dimGrid2(img_width);
+
+    std::chrono::high_resolution_clock::time_point start = get_time();
+    scanRowsKernel<<<dimGrid, dimBlock>>>(original_matrix, result_matrix, img_width, img_height);
+    scanColumnsKernel<<<dimGrid2, dimBlock>>>(result_matrix, img_width, img_height);
+    cudaDeviceSynchronize();
+    cudaCheckError();
+    std::chrono::high_resolution_clock::time_point end = get_time();
+    long long kernel_duration = get_time_diff(start, end, nanoseconds);
+
+    
+    cudaMemcpy(result_image, result_matrix, matrixSize, cudaMemcpyDeviceToHost);
+    cudaCheckError();
+
+    cudaFree(original_matrix);
+    cudaCheckError();
+
+    cudaFree(result_matrix);
+    cudaCheckError();
+
+    return kernel_duration;
+
+} 

@@ -1,8 +1,6 @@
 #ifndef GPU_utils_H
 #define GPU_utils_H
 
-#include "library.h"
-
 
 #define cudaCheckError() {                                                                  \
  cudaError_t e=cudaGetLastError();                                                          \
