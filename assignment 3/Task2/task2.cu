@@ -6,6 +6,7 @@
 #include "CImg.h"
 #include <cuda_runtime.h>
 #include <vector>
+#include "task2_GPU.h"
 using namespace cimg_library;
 using namespace std;
 

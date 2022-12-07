@@ -1,15 +1,14 @@
 #ifndef GPU_TASK2_GPU_H
 #define GPU_TASK2_GPU_H
 #include "GPU_utils.h"
-#define needed_threads 512
+#define needed_threads 256
 #define sqrt_needed_threads 16 // sqrt(512/2)
 #define i blockIdx.x * blockDim.x + threadIdx.x
 #define j blockIdx.y * blockDim.y + threadIdx.y
 #define sectionIdx blockIdx.y * blockDim.x + blockIdx.x
-template<typename T>
-__global__ void prefixSumScanKernel(T* input_matrix, T* total_sum_sections, T* result_matrix, int img_width, int img_height)
+__global__ void prefixSumScanKernel(int32_t* input_matrix, int32_t* total_sum_sections, int32_t* result_matrix, int img_width, int img_height)
 {
-    __shared__ T cache[needed_threads];
+    __shared__ int32_t cache[needed_threads];
 
     // img_width is the number of columns
     // img_height is the number of rows
@@ -49,8 +48,7 @@ __global__ void prefixSumScanKernel(T* input_matrix, T* total_sum_sections, T* r
 
 }
 
-template<typename T>
-__global__ addBoundaryValueKernel(T* row_prefix_result, T* total_sum_sections, int img_width, int img_height)
+__global__ addBoundaryValueKernel(int32_t* row_prefix_result, int32_t* total_sum_sections, int img_width, int img_height)
 {
     int idx = j * img_width + i;
     if(idx < (img_width * img_height))
@@ -63,8 +61,7 @@ __global__ addBoundaryValueKernel(T* row_prefix_result, T* total_sum_sections, i
     }
 }
 
-template<typename T>
-__global__ transposeKernel(T* input_matrix, T* result_matrix, int img_width, int img_height)
+__global__ transposeKernel(int32_t* input_matrix, int32_t* result_matrix, int img_width, int img_height)
 {
     int idx = j * img_width + i;
     if(idx < (img_width * img_height))
@@ -73,8 +70,7 @@ __global__ transposeKernel(T* input_matrix, T* result_matrix, int img_width, int
     }
 }
 
-template<typename T>
-__global__ efficientTransposeKernel(T* input_matrix, T* result_matrix, int img_width, int img_height)
+__global__ efficientTransposeKernel(int32_t* input_matrix, int32_t* result_matrix, int img_width, int img_height)
 {
     __shared__ T cache[sqrt_needed_threads][sqrt_needed_threads];
 
@@ -102,18 +98,15 @@ __global__ efficientTransposeKernel(T* input_matrix, T* result_matrix, int img_w
 }
 
 
-
-
-template <typename T> 
-long long GPU_summed_area_table(T* input_matrix, T* result_image, int img_width, int img_height)
+long long GPU_summed_area_table(int32_t* input_matrix, int32_t* result_image, int img_width, int img_height)
 {
-    T* original_matrix;    
-    T* result_matrix; 
-    T* result_matrix_2;
-    T*total_sum_sections; 
+    int32_t* original_matrix;    
+    int32_t* result_matrix; 
+    int32_t* result_matrix_2;
+    int32_t*total_sum_sections; 
 
-    int matrixSize = img_width * img_height * sizeof(T);
-    int total_sum_sections_size = needed_threads * img_height * sizeof(T);
+    int matrixSize = img_width * img_height * sizeof(int32_t);
+    int total_sum_sections_size = needed_threads * img_height * sizeof(int32_t);
 
     cudaMalloc((void **)&original_matrix, matrixSize);
     cudaCheckError();
