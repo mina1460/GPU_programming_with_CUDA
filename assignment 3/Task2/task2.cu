@@ -154,14 +154,48 @@ int main(int argc, char* argv[]){
     cout << "image basename: " << img_basename << endl;
     
     // create a new image to store the result
-    int32_t* orig_values = img.data();
+
+    // int32_t* orig_values = img.data();
+    width = 10; 
+    height = 10;
+    int32_t *orig_values = (int32_t*) calloc(width * height * depth, sizeof(int));
+    
+    for(int i=0; i<width; i++){
+        for(int j=0; j<height; j++){
+            orig_values[i*width + j] = i+j;
+        }
+    }
+    cout <<"Original: " << endl;
+    for(int i=0; i<width; i++){
+        for(int j=0; j<height; j++){
+            cout << orig_values[i*width + j] << " ";
+        }
+        cout << endl;
+    }
+    
     int32_t* CPU_result_values = (int32_t*) calloc(width * height * depth, sizeof(int));
     
     compute_summed_area_table(orig_values, CPU_result_values, width, height);
+    cout <<"CPU result: " << endl;
+    for(int i=0; i<width; i++){
+        for(int j=0; j<height; j++){
+            cout << CPU_result_values[i*width + j] << " ";
+        }
+        cout << endl;
+    }
+    cout << endl;
     // Add the GPU one here 
-    int32_t* GPU_result_values = (int32_t*) calloc(width * height * depth, sizeof(int));
+    int32_t* GPU_result_values = (int32_t*) calloc(width * height * depth, sizeof(int32_t));
     long long kernel_duration = GPU_summed_area_table(orig_values, GPU_result_values, width, height);
     cout << "Kernel duration: " << kernel_duration << " ms" << endl;
+
+    cout <<"GPU result: " << endl;
+    for(int i=0; i<2; i++){
+        for(int j=0; j<10; j++){
+            cout << GPU_result_values[i*width + j] << " ";
+        }
+        cout << endl;
+    }
     // compare the CPU and GPU results
     bool result = compare_with_tolerance(CPU_result_values, GPU_result_values, width, height, 0.001);
     if(result)
