@@ -6,67 +6,7 @@
 // #define block_width needed_threads
 
 
-// __global__ void scanRowsKernel(int32_t * input_matrix, int32_t * result_matrix, int32_t* add_matrix, int img_width, int img_height, int n_blocks_row)
-// {
-//     int block_width = ceil(float(img_width)/n_blocks_row);
-//     int start_idx   = blockIdx.x * block_width;
-//     int end_idx     = min(start_idx + block_width -1, img_width - 1);
-//     int row_number  = blockIdx.x / n_blocks_row;
-//     // Phase1: Each block will do the sequential part of the scan for a row
-//     if(start_idx < img_width)
-//     {
-//         result_matrix[row_number * img_width + start_idx] = input_matrix[row_number * img_width + start_idx];
-//         for (int i = start_idx+1; i <= end_idx; i++)
-//         {
-//             int idx = row_number * img_width + i;
-//             if (idx < img_width)
-//                 result_matrix[idx] = result_matrix[idx - 1] + input_matrix[idx];
-//         }
-//         __syncthreads();
-//         // Last Element of each block will be the sum of all elements in the block
-//         //Phase 2: We need to have a 2D shared Memory, where each row will have a block_width number of elements
-
-//         if(end_idx < img_width)
-//                 shared_memory[threadIdx.x] = result_matrix[row_number * img_width + end_idx];
-//             else 
-//                 shared_memory[threadIdx.x] = 0;
-
-//             for(int stride = 1 ; stride < blockDim.x ; stride *= 2)
-//             {
-//                 __syncthreads();
-//                 if(threadIdx.x >= stride)
-//                 {
-//                     int temp = shared_memory[threadIdx.x - stride] + shared_memory[threadIdx.x];
-//                     __syncthreads();
-//                     shared_memory[threadIdx.x] = temp;
-//                 }
-//             }
-
-//             // printf("shared_memory[threadIdx.x] = %d", shared_memory[threadIdx.x]);
-
-//             __syncthreads();
-
-//             // Third phase: Each sharedMemory value is added to the next section of the result matrix
-//             int32_t temp = 0; 
-//             if(threadIdx.x > 0)
-//                 temp = shared_memory[threadIdx.x - 1];
-
-            
-//             for(int idx = start_idx ; idx <= end_idx ; idx++)
-//             {
-//                 if(idx < img_width)
-//                     result_matrix[row_number * img_width + idx] += temp;
-//             }
-
-
-
-
-
-//     }
-
-// }
-
-__global__ void prefixSumScanKernel(int32_t* input_matrix, int32_t* add_matrix, int32_t* result_matrix, int img_width, int img_height, int n_blocks_row, bool isadded)
+__global__ void prefixRowSumScanKernel(int32_t* input_matrix, int32_t* add_matrix, int32_t* result_matrix, int img_width, int img_height, int n_blocks_row, bool isadded)
 {
     __shared__ int32_t cache[needed_threads];
 
@@ -105,31 +45,30 @@ __global__ void prefixSumScanKernel(int32_t* input_matrix, int32_t* add_matrix, 
             if(threadIdx.x == blockDim.x - 1 && isadded){
                 add_matrix[sectionIdx] = cache[threadIdx.x];
             }
-        
     }
 }
 
-
-
-__global__ void addSectionsKernel(int32_t* result_matrix, int32_t* add_matrix, int img_width, int img_height, int n_blocks_row)
+__global__ void addRowSectionsKernel(int32_t* result_matrix, int32_t* add_matrix, int img_width, int img_height, int n_blocks_row)
 {
     int i           = blockIdx.x * blockDim.x + threadIdx.x;
     int j           = blockIdx.y * blockDim.y + threadIdx.y;
     int sectionIdx  = blockIdx.x + blockIdx.y *n_blocks_row - 1; 
+    
+    if((sectionIdx+1) %n_blocks_row == 0 && sectionIdx > 0)
+        add_matrix[sectionIdx] = 0;
 
     int idx = j * img_width + i;
 
-    if(idx < (img_width * img_height))
+    if(idx < (img_width * img_height) && idx%img_width != 0)
     {
         if(i < img_width && j < img_height )
-        {   if(sectionIdx > 0)
-                result_matrix[idx] += add_matrix[sectionIdx];
-                //print
-                printf("result_matrix[%d] = %d, add_matrix[%d] = %d; \n", idx, result_matrix[idx], sectionIdx, add_matrix[sectionIdx]);
+        {   if(sectionIdx >= 0)
+                {
+                    result_matrix[idx] += add_matrix[sectionIdx];
+                }
         }
     }
 }
-
 
 
 
@@ -186,23 +125,20 @@ long long GPU_summed_area_table(int32_t* input_matrix, int32_t* result_image, in
 
         
     
-    prefixSumScanKernel<<<dimGrid, dimBlock>>>(original_matrix,add_matrix, result_matrix, img_width, img_height, n_blocks_row, true);
+    prefixRowSumScanKernel<<<dimGrid, dimBlock>>>(original_matrix,add_matrix, result_matrix, img_width, img_height, n_blocks_row, true);
     cudaDeviceSynchronize();
     cudaCheckError();
-    printf("STOP\n\n");
     // Do prefix sum to the add matrix 
-    prefixSumScanKernel<<<dimGrid2, dimBlock2>>>(add_matrix, NULL, prefix_add_matrix, img_height, n_blocks_row, n_blocks_row, false);
+    prefixRowSumScanKernel<<<dimGrid2, dimBlock2>>>(add_matrix, NULL, prefix_add_matrix, img_height, n_blocks_row, n_blocks_row, false);
     cudaDeviceSynchronize();
     cudaCheckError();
     // Propgate the sum of prefix_add_matrix in the result matrix
-    addSectionsKernel<<<dimGrid, dimBlock>>>(result_matrix, prefix_add_matrix, img_width, img_height, n_blocks_row);
-    // addSectionsKernel<<>>(result_matrix, add_matrix, img_width, img_height, n_blocks_row);
-   
+    addRowSectionsKernel<<<dimGrid, dimBlock>>>(result_matrix, prefix_add_matrix, img_width, img_height, n_blocks_row);
+    cudaDeviceSynchronize();
+    cudaCheckError();
 
-   
-    //print the n_blocks_row
-    dim3 dimBlock3(img_height, n_blocks_row);
-    dim3 dimGrid3(1, 1);
+    // Same thing applies to the columns
+
 
 
     
@@ -213,7 +149,7 @@ long long GPU_summed_area_table(int32_t* input_matrix, int32_t* result_image, in
     
    
 
-    cudaMemcpy(result_image, prefix_add_matrix, img_height * n_blocks_row * sizeof(int32_t), cudaMemcpyDeviceToHost);
+    cudaMemcpy(result_image, result_matrix, matrixSize, cudaMemcpyDeviceToHost);
     cudaCheckError();
     
     cudaFree(original_matrix);
