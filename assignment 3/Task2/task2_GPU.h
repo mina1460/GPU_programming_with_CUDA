@@ -84,15 +84,8 @@ __global__ void prefixSumScanKernel(int32_t* input_matrix, int32_t* add_matrix, 
             cache[threadIdx.x] = input_matrix[idx];
         else
             cache[threadIdx.x] = 0;
+            //printing blockidx.x, blockdim.x, threadidx.x
 
-        if(idx < (img_width * img_height))
-        {
-            if(i < img_width && j < img_height)
-                cache[threadIdx.x] = input_matrix[idx];
-            else
-                cache[threadIdx.x] = 0;
-
-            printf("cache[%d] = %d , input_matrix[%d]=%d, i=%d, j=%d\n",threadIdx.x, cache[threadIdx.x], idx, input_matrix[idx], i, j);
             int temp = 0;
             for (int stride = 1 ; stride < blockDim.x ; stride*=2)
             {
@@ -105,14 +98,14 @@ __global__ void prefixSumScanKernel(int32_t* input_matrix, int32_t* add_matrix, 
                 }
             }
             //print the result 
-            result_matrix[idx] = cache[threadIdx.x];
-            printf("cache[%d] = %d, result_matrix[%d]=%d\n",threadIdx.x, cache[threadIdx.x],idx, result_matrix[idx]);
+            if(i < img_width && j < img_height)
+                result_matrix[idx] = cache[threadIdx.x];
 
             // add the results of the end of each section in add_matrix 
             if(threadIdx.x == blockDim.x - 1 && isadded){
                 add_matrix[sectionIdx] = cache[threadIdx.x];
             }
-        }
+        
     }
 }
 
@@ -132,7 +125,7 @@ __global__ void addSectionsKernel(int32_t* result_matrix, int32_t* add_matrix, i
         {   if(sectionIdx > 0)
                 result_matrix[idx] += add_matrix[sectionIdx];
                 //print
-                // printf("result_matrix[%d] = %d, add_matrix[%d] = %d; \n", idx, result_matrix[idx], sectionIdx, add_matrix[sectionIdx]);
+                printf("result_matrix[%d] = %d, add_matrix[%d] = %d; \n", idx, result_matrix[idx], sectionIdx, add_matrix[sectionIdx]);
         }
     }
 }

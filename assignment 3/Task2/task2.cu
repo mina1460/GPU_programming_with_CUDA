@@ -190,8 +190,8 @@ int main(int argc, char* argv[]){
     cout << "Kernel duration: " << kernel_duration << " ms" << endl;
 
     cout <<"GPU result: " << endl;
-    for(int i=0; i<2; i++){
-        for(int j=0; j<10; j++){
+    for(int i=0; i<width; i++){
+        for(int j=0; j<height; j++){
             cout << GPU_result_values[i*width + j] << " ";
         }
         cout << endl;
