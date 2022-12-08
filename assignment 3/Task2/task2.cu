@@ -156,24 +156,24 @@ int main(int argc, char* argv[]){
     // create a new image to store the result
 
     // int32_t* orig_values = img.data();
-    width = 10; 
-    height = 10;
-    int32_t *orig_values = (int32_t*) calloc(width * height * depth, sizeof(int));
+    width = 25; 
+    height = 20;
+    int32_t *orig_values = (int32_t*) calloc(width * height * depth, sizeof(int32_t));
     
-    for(int i=0; i<width; i++){
-        for(int j=0; j<height; j++){
+    for(int i=0; i<height; i++){
+        for(int j=0; j<width; j++){
             orig_values[i*width + j] = i+j;
         }
     }
     cout <<"Original: " << endl;
-    for(int i=0; i<width; i++){
-        for(int j=0; j<height; j++){
+    for(int i=0; i<height; i++){
+        for(int j=0; j<width; j++){
             cout << orig_values[i*width + j] << " ";
         }
         cout << endl;
     }
     
-    int32_t* CPU_result_values = (int32_t*) calloc(width * height * depth, sizeof(int));
+    int32_t* CPU_result_values = (int32_t*) calloc(width * height * depth, sizeof(int32_t));
     
     compute_summed_area_table(orig_values, CPU_result_values, width, height);
     cout <<"CPU result: " << endl;
