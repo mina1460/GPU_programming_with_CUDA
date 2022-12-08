@@ -31,33 +31,28 @@ class query{
 };
 
 
-void compute_summed_area_table(int32_t* input_values, int32_t* output_values, int img_width, int img_height){
-    int top_left = 0;
-    int left = 0; 
-    int top = 0;
-    for(int i=0; i<img_height; i++){
-        for(int j=0; j<img_width; j++){
-            top_left = left = top = 0;
-            if(i> 0 && j > 0){
-                top_left = output_values[(i-1)*img_width + j-1];
-                left =  output_values[(i)*img_width + j-1];
-                top= output_values[(i-1)*img_width + j];
-            }
-            else if(i> 0){
-                top= output_values[(i-1)*img_width + j];
-            }
-            else if(j> 0){
-                left =  output_values[(i)*img_width + j-1];
-            }
-            output_values[i*img_width + j] =   top + left + input_values[i*img_width + j] - top_left; 
-        }
+void compute_summed_area_table(long long* input_values, long long* output_values, int img_width, int img_height){
+    
+    output_values[0] = input_values[0];
+
+    for(int i=1; i<img_width; i++)
+        output_values[i] = output_values[i-1] + input_values[i];
+
+    for(int j=1; j<img_height; j++)
+        output_values[j*img_width] = output_values[(j-1)*img_width]+ input_values[j*img_width];
+
+    for(int i = 1 ; i < img_height; i++)
+    {
+        for(int j = 1; j < img_width; j++)
+            output_values[i*img_width + j] = input_values[i*img_width + j] + output_values[(i-1)*img_width + j] + output_values[i*img_width + j-1] - output_values[(i-1)*img_width + j - 1];
     }
+
 }
 
 void test_compute_summed_area_table(){
-    int32_t input_values[16] = {5,2,5,2, 3,6,3,6, 5,2,5,2, 3,6,3,6};
-    int32_t output_values[16] = {0};
-    int32_t correct_values[16] = {5,7,12,14, 8,16,24,32, 13, 23, 36, 46, 16, 32, 48, 64};
+    long long input_values[16] = {5,2,5,2, 3,6,3,6, 5,2,5,2, 3,6,3,6};
+    long long output_values[16] = {0};
+    long long correct_values[16] = {5,7,12,14, 8,16,24,32, 13, 23, 36, 46, 16, 32, 48, 64};
     compute_summed_area_table(input_values, output_values, 4, 4);
     for(int i=0; i<4; i++){
         for(int j=0; j<4; j++){
@@ -80,7 +75,7 @@ void test_compute_summed_area_table(){
     }
     cout << endl << "Test passed" << endl;
 }
-int intensity_sum(int32_t* summed_area_table, query q, int width, int height){
+int intensity_sum(long long* summed_area_table, query q, int width, int height){
     
         if(q.p1.x < 0 || q.p1.y < 0 || q.p2.x < 0 || q.p2.y < 0 || q.p3.x < 0 || q.p3.y < 0 || q.p4.x < 0 || q.p4.y < 0){
             cout << "Error: negative index" << endl;
@@ -92,18 +87,18 @@ int intensity_sum(int32_t* summed_area_table, query q, int width, int height){
             return -1;
         }
 
-        int32_t A = summed_area_table[q.p1.x * width + q.p1.y];
-        int32_t B = summed_area_table[q.p2.x * width + q.p2.y];
-        int32_t C = summed_area_table[q.p3.x * width + q.p3.y];
-        int32_t D = summed_area_table[q.p4.x * width + q.p4.y];
-        int32_t sum = A + D - B - C;
+        long long A = summed_area_table[q.p1.x * width + q.p1.y];
+        long long B = summed_area_table[q.p2.x * width + q.p2.y];
+        long long C = summed_area_table[q.p3.x * width + q.p3.y];
+        long long D = summed_area_table[q.p4.x * width + q.p4.y];
+        long long sum = A + D - B - C;
         return sum;
 }
 
 int test_intensity_sum(){
-    int32_t correct_values[16] = {5,7,12,14, 8,16,24,32, 13, 23, 36, 46, 16, 32, 48, 64};
+    long long correct_values[16] = {5,7,12,14, 8,16,24,32, 13, 23, 36, 46, 16, 32, 48, 64};
     query q(Point(1,1), Point(1,3), Point(3,1), Point(3,3));
-    int32_t result = intensity_sum(correct_values, q, 4, 4);
+    long long result = intensity_sum(correct_values, q, 4, 4);
     if(result != 16){
         cout << "Error, expected 16, got " << result << endl;
         return -1;
@@ -115,7 +110,7 @@ int test_intensity_sum(){
 }
 
 // compare the CPU and GPU results
-bool compare_with_tolerance(int32_t* cpu_results, int32_t* gpu_results, int img_width, int img_height, double tolerance){
+bool compare_with_tolerance(long long* cpu_results, long long* gpu_results, int img_width, int img_height, double tolerance){
     
     int num_elements = img_width * img_height;
 
@@ -141,7 +136,7 @@ int main(int argc, char* argv[]){
     test_intensity_sum();
     string img_path = argv[1];
 
-    CImg<int32_t> img(img_path.c_str());
+    CImg<long long> img(img_path.c_str());
 
     // get the image dimensions
     int width = img.width();
@@ -156,9 +151,9 @@ int main(int argc, char* argv[]){
     // create a new image to store the result
 
     // int32_t* orig_values = img.data();
-    width = 25; 
-    height = 20;
-    int32_t *orig_values = (int32_t*) calloc(width * height * depth, sizeof(int32_t));
+    width = 10; 
+    height = 10;
+    long long *orig_values = (long long*) calloc(width * height * depth, sizeof(long long));
     
     for(int i=0; i<height; i++){
         for(int j=0; j<width; j++){
@@ -173,25 +168,25 @@ int main(int argc, char* argv[]){
         cout << endl;
     }
     
-    int32_t* CPU_result_values = (int32_t*) calloc(width * height * depth, sizeof(int32_t));
+    long long* CPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
     
     compute_summed_area_table(orig_values, CPU_result_values, width, height);
     cout <<"CPU result: " << endl;
-    for(int i=0; i<width; i++){
-        for(int j=0; j<height; j++){
+    for(int i=0; i<height; i++){
+        for(int j=0; j< width; j++){
             cout << CPU_result_values[i*width + j] << " ";
         }
         cout << endl;
     }
     cout << endl;
     // Add the GPU one here 
-    int32_t* GPU_result_values = (int32_t*) calloc(width * height * depth, sizeof(int32_t));
+    long long* GPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
     long long kernel_duration = GPU_summed_area_table(orig_values, GPU_result_values, width, height);
     cout << "Kernel duration: " << kernel_duration << " ms" << endl;
 
     cout <<"GPU result: " << endl;
-    for(int i=0; i<width; i++){
-        for(int j=0; j<height; j++){
+    for(int i=0; i<height; i++){
+        for(int j=0; j<width; j++){
             cout << GPU_result_values[i*width + j] << " ";
         }
         cout << endl;

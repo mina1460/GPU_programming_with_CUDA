@@ -2,9 +2,9 @@
 #define needed_threads 2048
 #define TILE_WIDTH 10
 
-__global__ void prefixSumScanKernel(int32_t* input_matrix, int32_t* add_matrix, int32_t* result_matrix, int img_width, int img_height, int n_blocks_row, bool isadded)
+__global__ void prefixSumScanKernel(long long* input_matrix, long long* add_matrix, long long* result_matrix, int img_width, int img_height, int n_blocks_row, bool isadded)
 {
-    __shared__ int32_t cache[needed_threads];
+    __shared__ long long cache[needed_threads];
 
     int i           = blockIdx.x * blockDim.x + threadIdx.x;
     int j           = blockIdx.y * blockDim.y + threadIdx.y;
@@ -44,7 +44,7 @@ __global__ void prefixSumScanKernel(int32_t* input_matrix, int32_t* add_matrix, 
     }
 }
 
-__global__ void addRowSectionsKernel(int32_t* result_matrix, int32_t* add_matrix, int img_width, int img_height, int n_blocks_row)
+__global__ void addRowSectionsKernel(long long* result_matrix, long long* add_matrix, int img_width, int img_height, int n_blocks_row)
 {
     int i           = blockIdx.x * blockDim.x + threadIdx.x;
     int j           = blockIdx.y * blockDim.y + threadIdx.y;
@@ -67,9 +67,9 @@ __global__ void addRowSectionsKernel(int32_t* result_matrix, int32_t* add_matrix
 
 }
 
-__global__ void efficientTransposeKernel(int32_t* input_matrix, int32_t* result_matrix, int img_width, int img_height)
+__global__ void efficientTransposeKernel(long long* input_matrix, long long* result_matrix, int img_width, int img_height)
 {
-    __shared__ int32_t cache[TILE_WIDTH][TILE_WIDTH + 1];
+    __shared__ long long cache[TILE_WIDTH][TILE_WIDTH + 1];
 
     int row = blockIdx.y * TILE_WIDTH + threadIdx.y;
     int col = blockIdx.x * TILE_WIDTH + threadIdx.x;
@@ -95,19 +95,19 @@ __global__ void efficientTransposeKernel(int32_t* input_matrix, int32_t* result_
 }
 
 
-long long GPU_summed_area_table(int32_t* input_matrix, int32_t* result_image, int img_width, int img_height)
+long long GPU_summed_area_table(long long* input_matrix, long long* result_image, int img_width, int img_height)
 {
-    int32_t* original_matrix;    
-    int32_t* result_matrix; 
-    int32_t* add_matrix;
-    int32_t* prefix_add_matrix;
-    int32_t* transpose_matrix;
+    long long* original_matrix;    
+    long long* result_matrix; 
+    long long* add_matrix;
+    long long* prefix_add_matrix;
+    long long* transpose_matrix;
 
     //for col
-    int32_t* add_matrix_2;
-    int32_t* prefix_add_matrix_2;
+    long long* add_matrix_2;
+    long long* prefix_add_matrix_2;
 
-    int matrixSize = img_width * img_height * sizeof(int32_t);
+    int matrixSize = img_width * img_height * sizeof(long long);
     const int maxNumberOfBlocks = 65535;
     const int maxNumberOfThreads = 6;
 
@@ -127,17 +127,17 @@ long long GPU_summed_area_table(int32_t* input_matrix, int32_t* result_image, in
 
     cudaMalloc((void **)&result_matrix, matrixSize);
     cudaCheckError();
-        // img_height * n_blocks_row * sizeof(int32_t)
-    cudaMalloc((void **)&add_matrix, img_height * n_blocks_row * sizeof(int32_t)); // n_blocks_row is the number of sections in a row for each row
+        // img_height * n_blocks_row * sizeof(long long)
+    cudaMalloc((void **)&add_matrix, img_height * n_blocks_row * sizeof(long long)); // n_blocks_row is the number of sections in a row for each row
     cudaCheckError();
 
-    cudaMalloc((void **)&add_matrix_2, img_width * n_blocks_col * sizeof(int32_t)); // n_blocks_row is the number of sections in a row for each row
+    cudaMalloc((void **)&add_matrix_2, img_width * n_blocks_col * sizeof(long long)); // n_blocks_row is the number of sections in a row for each row
     cudaCheckError();
 
-    cudaMalloc((void **)&prefix_add_matrix, img_height * n_blocks_row * sizeof(int32_t)); // n_blocks_row is the number of sections in a row for each row
+    cudaMalloc((void **)&prefix_add_matrix, img_height * n_blocks_row * sizeof(long long)); // n_blocks_row is the number of sections in a row for each row
     cudaCheckError();
 
-    cudaMalloc((void **)&prefix_add_matrix, img_width * n_blocks_col * sizeof(int32_t)); 
+    cudaMalloc((void **)&prefix_add_matrix, img_width * n_blocks_col * sizeof(long long)); 
     cudaCheckError();
 
     cudaMemcpy(original_matrix, input_matrix, matrixSize, cudaMemcpyHostToDevice);
@@ -207,7 +207,7 @@ long long GPU_summed_area_table(int32_t* input_matrix, int32_t* result_image, in
     long long kernel_duration = get_time_diff(start, end, nanoseconds);
     
    
-//img_height * n_blocks_row * sizeof(int32_t)
+//img_height * n_blocks_row * sizeof(long long)
     cudaMemcpy(result_image, result_matrix,  matrixSize, cudaMemcpyDeviceToHost);
     cudaCheckError();
     
