@@ -1,6 +1,6 @@
 #include "GPU_utils.h"
 #define needed_threads 2048
-#define TILE_WIDTH 10
+#define TILE_WIDTH 5
 
 __global__ void prefixSumScanKernel(long long* input_matrix, long long* add_matrix, long long* result_matrix, int img_width, int img_height, int n_blocks_row, bool isadded)
 {
@@ -67,33 +67,54 @@ __global__ void addRowSectionsKernel(long long* result_matrix, long long* add_ma
 
 }
 
-__global__ void efficientTransposeKernel(long long* input_matrix, long long* result_matrix, int img_width, int img_height)
-{
-    __shared__ long long cache[TILE_WIDTH][TILE_WIDTH + 1];
+// __global__ void efficientTransposeKernel(long long* input_matrix, long long* result_matrix, int img_width, int img_height)
+// {
+//     __shared__ long long cache[TILE_WIDTH][TILE_WIDTH + 1];
 
-    int row = blockIdx.y * TILE_WIDTH + threadIdx.y;
-    int col = blockIdx.x * TILE_WIDTH + threadIdx.x;
-    int width = gridDim.x * TILE_WIDTH;
-    if(col < img_width && row < img_height){
-        for(int j = 0; j < TILE_WIDTH ; j+=blockDim.y)
-        {
-            if(col < img_width && (row + j) < img_height)
-                cache[(threadIdx.y + j)][threadIdx.x] = input_matrix[(row + j)*width + col];
-        }
+//     int row = blockIdx.y * TILE_WIDTH + threadIdx.y;
+//     int col = blockIdx.x * TILE_WIDTH + threadIdx.x;
+//     int width = gridDim.x * TILE_WIDTH;
+//     if(col < img_width && row < img_height){
+//         for(int j = 0; j < TILE_WIDTH ; j+=blockDim.y)
+//         {
+//             if(col < img_width && (row + j) < img_height)
+//                 cache[(threadIdx.y + j)][threadIdx.x] = input_matrix[(row + j)*width + col];
+//         }
 
-        __syncthreads();
+//         __syncthreads();
 
    
-        col = blockIdx.y * TILE_WIDTH + threadIdx.x;
-        row = blockIdx.x * TILE_WIDTH + threadIdx.y;
+//         col = blockIdx.y * TILE_WIDTH + threadIdx.x;
+//         row = blockIdx.x * TILE_WIDTH + threadIdx.y;
 
-        for(int j = 0; j < TILE_WIDTH ; j+=blockDim.y)
-        {   if((col + j) < img_height && row < img_width)
-                result_matrix[(row + j)*width + col] = cache[threadIdx.x][(threadIdx.y + j)];
-        }
-    }
+//         for(int j = 0; j < TILE_WIDTH ; j+=blockDim.y)
+//         {   if((col + j) < img_height && row < img_width)
+//                 result_matrix[(row + j)*width + col] = cache[threadIdx.x][(threadIdx.y + j)];
+//         }
+//     }
+// }
+__global__ void efficientTransposeKernel( long long *input_matrix, long long *result_matrix, int img_width, int img_height)
+{
+	__shared__ long long cache[TILE_WIDTH][TILE_WIDTH+1];
+	
+	unsigned int xIndex = blockIdx.x * TILE_WIDTH + threadIdx.x;
+	unsigned int yIndex = blockIdx.y * TILE_WIDTH + threadIdx.y;
+	if((xIndex < img_width) && (yIndex < img_height))
+	{
+		unsigned int index_in = yIndex * img_width + xIndex;
+		cache[threadIdx.y][threadIdx.x] = input_matrix[index_in];
+	}
+
+	__syncthreads();
+
+	xIndex = blockIdx.y * TILE_WIDTH + threadIdx.x;
+	yIndex = blockIdx.x * TILE_WIDTH + threadIdx.y;
+	if((xIndex < img_height) && (yIndex < img_width))
+	{
+		unsigned int index_out = yIndex * img_width + xIndex;
+		result_matrix[index_out] = cache[threadIdx.x][threadIdx.y];
+	}
 }
-
 
 long long GPU_summed_area_table(long long* input_matrix, long long* result_image, int img_width, int img_height)
 {
@@ -109,7 +130,7 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
 
     int matrixSize = img_width * img_height * sizeof(long long);
     const int maxNumberOfBlocks = 65535;
-    const int maxNumberOfThreads = 6;
+    const int maxNumberOfThreads = 1024;
 
     int n_blocks_row = ceil(float(img_width)/maxNumberOfThreads);
     //each block will be a section of a row
@@ -162,6 +183,7 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
     dim3 dimGrid4(n_blocks_col, img_width);
     dim3 dimBlock5(n_blocks_col);
     dim3 dimGrid5(img_width, n_blocks_col);
+    dim3 dimGrid6(ceil(float(img_height)/TILE_WIDTH), ceil(float(img_width)/TILE_WIDTH));
 
     std::chrono::high_resolution_clock::time_point start = get_time();
 
@@ -201,7 +223,7 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
         cudaCheckError();
     }
     //transpose again
-    efficientTransposeKernel<<<dimGrid3, dimBlock3>>>(result_matrix,transpose_matrix, img_height, img_width);
+    efficientTransposeKernel<<<dimGrid6, dimBlock3>>>(result_matrix,transpose_matrix, img_height, img_width);
      
     std::chrono::high_resolution_clock::time_point end = get_time();
     long long kernel_duration = get_time_diff(start, end, nanoseconds);

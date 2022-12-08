@@ -152,7 +152,7 @@ int main(int argc, char* argv[]){
 
     // int32_t* orig_values = img.data();
     width = 10; 
-    height = 10;
+    height = 5;
     long long *orig_values = (long long*) calloc(width * height * depth, sizeof(long long));
     
     for(int i=0; i<height; i++){
