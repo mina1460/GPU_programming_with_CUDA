@@ -150,47 +150,31 @@ int main(int argc, char* argv[]){
     
     // create a new image to store the result
 
-    // int32_t* orig_values = img.data();
-    width = 10; 
-    height = 5;
-    long long *orig_values = (long long*) calloc(width * height * depth, sizeof(long long));
-    
-    for(int i=0; i<height; i++){
-        for(int j=0; j<width; j++){
-            orig_values[i*width + j] = i+j;
-        }
-    }
-    cout <<"Original: " << endl;
-    for(int i=0; i<height; i++){
-        for(int j=0; j<width; j++){
-            cout << orig_values[i*width + j] << " ";
-        }
-        cout << endl;
-    }
+    long long* orig_values = img.data();
     
     long long* CPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
     
     compute_summed_area_table(orig_values, CPU_result_values, width, height);
-    cout <<"CPU result: " << endl;
-    for(int i=0; i<height; i++){
-        for(int j=0; j< width; j++){
-            cout << CPU_result_values[i*width + j] << " ";
-        }
-        cout << endl;
-    }
-    cout << endl;
+    // cout <<"CPU result: " << endl;
+    // for(int i=0; i<height; i++){
+    //     for(int j=0; j< width; j++){
+    //         cout << CPU_result_values[i*width + j] << " ";
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl;
     // Add the GPU one here 
     long long* GPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
     long long kernel_duration = GPU_summed_area_table(orig_values, GPU_result_values, width, height);
     cout << "Kernel duration: " << kernel_duration << " ms" << endl;
 
-    cout <<"GPU result: " << endl;
-    for(int i=0; i<height; i++){
-        for(int j=0; j<width; j++){
-            cout << GPU_result_values[i*width + j] << " ";
-        }
-        cout << endl;
-    }
+    // cout <<"GPU result: " << endl;
+    // for(int i=0; i<height; i++){
+    //     for(int j=0; j<width; j++){
+    //         cout << GPU_result_values[i*width + j] << " ";
+    //     }
+    //     cout << endl;
+    // }
     // compare the CPU and GPU results
     bool result = compare_with_tolerance(CPU_result_values, GPU_result_values, width, height, 0.001);
     if(result)

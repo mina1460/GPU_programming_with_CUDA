@@ -1,4 +1,6 @@
 #include "GPU_utils.h"
+#include<iostream>
+using namespace std; 
 #define needed_threads 2048
 #define TILE_WIDTH 5
 
@@ -111,7 +113,7 @@ __global__ void efficientTransposeKernel( long long *input_matrix, long long *re
 	yIndex = blockIdx.x * TILE_WIDTH + threadIdx.y;
 	if((xIndex < img_height) && (yIndex < img_width))
 	{
-		unsigned int index_out = yIndex * img_width + xIndex;
+		unsigned int index_out = yIndex * img_height + xIndex;
 		result_matrix[index_out] = cache[threadIdx.x][threadIdx.y];
 	}
 }
@@ -183,7 +185,7 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
     dim3 dimGrid4(n_blocks_col, img_width);
     dim3 dimBlock5(n_blocks_col);
     dim3 dimGrid5(img_width, n_blocks_col);
-    dim3 dimGrid6(ceil(float(img_height)/TILE_WIDTH), ceil(float(img_width)/TILE_WIDTH));
+    dim3 dimGrid6 ( ceil(float(img_height)/TILE_WIDTH),ceil(float(img_width)/TILE_WIDTH));
 
     std::chrono::high_resolution_clock::time_point start = get_time();
 
@@ -203,12 +205,12 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
         cudaDeviceSynchronize();
         cudaCheckError();
     }
-    //Do transpose
+    // Do transpose
     efficientTransposeKernel<<<dimGrid3, dimBlock3>>>(result_matrix,transpose_matrix, img_width, img_height);
     cudaDeviceSynchronize();
     cudaCheckError();
 
-    // Same thing applies to the columns
+    // // Same thing applies to the columns
     prefixSumScanKernel<<<dimGrid4, dimBlock>>>(transpose_matrix,add_matrix, result_matrix, img_height, img_width, n_blocks_col, true);
     cudaDeviceSynchronize();
     cudaCheckError();
@@ -228,9 +230,10 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
     std::chrono::high_resolution_clock::time_point end = get_time();
     long long kernel_duration = get_time_diff(start, end, nanoseconds);
     
-   
-//img_height * n_blocks_row * sizeof(long long)
-    cudaMemcpy(result_image, result_matrix,  matrixSize, cudaMemcpyDeviceToHost);
+
+
+    cudaMemcpy(result_image, transpose_matrix,  matrixSize, cudaMemcpyDeviceToHost);
+
     cudaCheckError();
     
     cudaFree(original_matrix);
