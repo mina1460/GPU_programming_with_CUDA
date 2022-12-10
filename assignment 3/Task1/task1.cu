@@ -16,7 +16,7 @@ using namespace std;
 
 __constant__ float d_mask[MAX_MASK_SIZE];
 
-#define TILE_SIZE 3
+#define TILE_SIZE 8
 #define BLOCK_SIZE ( TILE_SIZE + MAX_MASK_WIDTH - 1 )
 
 #define cudaCheckError() {                                                                  \
@@ -113,46 +113,42 @@ __global__ void convolution_2D_tiled_kernel(float *d_input, float *d_output, int
 
     if(threadIdx.x == 3 && threadIdx.y == 2 && blockIdx.x == 0 && blockIdx.y == 0) {
         printf("tile_row_start: %d, tile_row_end: %d, tile_col_start: %d, tile_col_end: %d\n", tile_row_start, tile_row_end, tile_col_start, tile_col_end);
-        //printing blockdim 
-        printf("blockDim.x: %d, blockDim.y: %d\n", blockDim.x, blockDim.y);
     }
 
     float pvalue = 0;
     int row_start = row - (mask_width / 2);
     int col_start = col - (mask_width / 2);
-
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
     for(int i = 0; i < mask_width; i++) {
         for(int j = 0; j < mask_width; j++) {
             int cur_row = row_start + i;
             int cur_col = col_start + j;
             if (cur_row < 0){
                 cur_row = 0;
+                //ty = 0;
             }  
             else if(cur_row >= height){
                 cur_row = height - 1;
+                //ty = blockDim.y - 1;
             }
             
             if (cur_col < 0){
                 cur_col = 0;
+                //tx = 0;
             }  
             else if(cur_col >= width){
                 cur_col = width - 1;
+                //tx = blockDim.x - 1;
             }
 
-            int x = threadIdx.x + (cur_col - tile_col_start);
-            int y = threadIdx.y + (cur_row - tile_row_start); 
+            //int x = tx + (cur_col - tile_col_start);
+            //int y = ty + (cur_row - tile_row_start); 
 
-            
-            if(cur_row >= tile_row_start && cur_row < tile_row_end 
-            && cur_col >= tile_col_start && cur_col < tile_col_end 
-            && x < TILE_SIZE && y < TILE_SIZE && x>=0 && y>=0) {
-                if(threadIdx.x == 0 && threadIdx.y == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
-                printf("cur_row: %d, cur_col: %d, x: %d, y: %d \n", cur_row, cur_col, x, y);
-                //printing row and column start
-                printf("row_start: %d, col_start: %d\n", row_start, col_start);
-                //print i and j 
-                printf("i: %d, j: %d\n", i, j);
-            }
+            int x = cur_col - tile_col_start;
+            int y = cur_row - tile_row_start;
+
+            if(x < TILE_SIZE && y < TILE_SIZE && x>=0 && y>=0) {
                 pvalue += N_ds[y][x] * d_mask[i * mask_width + j];
             } 
             else if(cur_row < height && cur_col < width) {
