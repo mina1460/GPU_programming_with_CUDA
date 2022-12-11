@@ -42,7 +42,6 @@ __global__ void prefixSumScanKernel(long long* input_matrix, long long* add_matr
             // add the results of the end of each section in add_matrix 
             if(threadIdx.x == blockDim.x - 1 && isadded){
                 add_matrix[sectionIdx] = cache[threadIdx.x];
-                //printf the blockDim
             }
     }
 }
@@ -52,7 +51,7 @@ __global__ void addRowSectionsKernel(long long* result_matrix, long long* add_ma
     int i           = blockIdx.x * blockDim.x + threadIdx.x;
     int j           = blockIdx.y * blockDim.y + threadIdx.y;
     int sectionIdx  = blockIdx.x + blockIdx.y *n_blocks_row - 1; 
-    // printf("sectionIdx: %d, i: %d, j:%d \n", sectionIdx,i,j);
+
     if((sectionIdx+1) %n_blocks_row == 0 && sectionIdx > 0)
         add_matrix[sectionIdx] = 0;
 
@@ -125,7 +124,7 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
 
     cudaMalloc((void **)&result_matrix, matrixSize);
     cudaCheckError();
-        // img_height * n_blocks_row * sizeof(long long)
+
     cudaMalloc((void **)&add_matrix, img_height * n_blocks_row * sizeof(long long)); // n_blocks_row is the number of sections in a row for each row
     cudaCheckError();
 

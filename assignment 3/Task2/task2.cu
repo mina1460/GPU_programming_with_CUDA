@@ -75,14 +75,14 @@ void test_compute_summed_area_table(){
     }
     cout << endl << "Test passed" << endl;
 }
-int intensity_sum(long long* summed_area_table, query q, int width, int height){
+long long intensity_sum(long long* summed_area_table, query q, int width, int height){
     
         if(q.p1.x < 0 || q.p1.y < 0 || q.p2.x < 0 || q.p2.y < 0 || q.p3.x < 0 || q.p3.y < 0 || q.p4.x < 0 || q.p4.y < 0){
             cout << "Error: negative index" << endl;
             return -1;
         }
 
-        if(q.p1.x >= width || q.p1.y >= height || q.p2.x >= width || q.p2.y >= height || q.p3.x >= width || q.p3.y >= height || q.p4.x >= width || q.p4.y >= height){
+        if(q.p1.y >= width || q.p1.x >= height || q.p2.y >= width || q.p2.x >= height || q.p3.y >= width || q.p3.x >= height || q.p4.y >= width || q.p4.x >= height){
             cout << "Error: index out of bounds" << endl;
             return -1;
         }
@@ -151,15 +151,25 @@ int main(int argc, char* argv[]){
     // create a new image to store the result
 
     long long* orig_values = img.data();
+    width = 6; height = 5; depth = 1;
+  
+    //print orig
+    cout << "Original: " << endl;
+    for(int i=0; i<height; i++){
+        for(int j=0; j<width; j++){
+            cout << orig_values[i*height + j] << " ";
+        }
+        cout << endl;
+    }
 
     long long* CPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
     
     compute_summed_area_table(orig_values, CPU_result_values, width, height);
 
+
     long long* GPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
     long long kernel_duration = GPU_summed_area_table(orig_values, GPU_result_values, width, height);
     cout << "Kernel duration: " << kernel_duration << " ms" << endl;
-
 
     // compare the CPU and GPU results
     bool result = compare_with_tolerance(CPU_result_values, GPU_result_values, width, height, 0.001);
@@ -195,16 +205,25 @@ int main(int argc, char* argv[]){
         Point p2(x2, y2);
         Point p3(x3, y3);
         Point p4(x4, y4);
-        queries_vec.push_back(query(p1, p2, p3, p4));
+        vector<Point>v = {p1, p2, p3, p4};
+        sort(v.begin(), v.end(), [](Point a, Point b){
+            if(a.x == b.x)
+                return a.y < b.y;
+            return a.x < b.x;
+        }); 
+        if(v[0].x != v[1].x || v[0].y != v[2].y  || v[1].y != v[3].y || v[2].x != v[3].x)
+        {
+            cout << "Invalid query" << endl;
+            continue; 
+        }
+
+        queries_vec.push_back(query(v[0], v[1], v[2], v[3]));
     }
 
     for(auto q: queries_vec){
         int32_t result = intensity_sum(GPU_result_values, q, width, height);
         cout << "Result: " << result << endl;
     }
-    
-    
-    
     
 
     delete[] GPU_result_values;
