@@ -206,9 +206,6 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
     long long kernel_duration = get_time_diff(start, end, nanoseconds);
     
 
-    //img_width * n_blocks_col * sizeof(long long)
-    // img_height * n_blocks_row * sizeof(long long)
-    //img_height * n_blocks_row * sizeof(long long)
     cudaMemcpy(result_image, transpose_matrix , matrixSize, cudaMemcpyDeviceToHost);
     cudaCheckError();
     

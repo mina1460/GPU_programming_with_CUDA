@@ -151,44 +151,14 @@ int main(int argc, char* argv[]){
     // create a new image to store the result
 
     long long* orig_values = img.data();
-    //create dump values for orig_values
-    // width = 6000 , height = 4000, depth = 1;
-    // long long* orig_values = (long long*) calloc(width * height * depth, sizeof(long long));
-    // for(int i=0; i<width*height*depth; i++){
-    //     orig_values[i] = (i+1)%10;
-    // }
-    // print orig_values
-    // cout << "orig_values: " << endl;
-    // for(int i=0; i<height; i++){
-    //     for(int j=0; j< width; j++){
-    //         cout << orig_values[i*width + j] << " ";
-    //     }
-    //     cout << endl;
-    // }
 
     long long* CPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
     
     compute_summed_area_table(orig_values, CPU_result_values, width, height);
-    // cout <<"CPU result: " << endl;
-    // for(int i=0; i<height; i++){
-    //     for(int j=0; j< width; j++){
-    //         cout << CPU_result_values[i*width + j] << " ";
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl;
-    // Add the GPU one here 
+
     long long* GPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
     long long kernel_duration = GPU_summed_area_table(orig_values, GPU_result_values, width, height);
     cout << "Kernel duration: " << kernel_duration << " ms" << endl;
-
-    // cout <<"GPU result: " << endl;
-    // for(int i=0; i<height; i++){
-    //     for(int j=0; j<width; j++){
-    //         cout << GPU_result_values[i*width + j] << " ";
-    //     }
-    //     cout << endl;
-    // }
 
 
     // compare the CPU and GPU results
@@ -201,37 +171,37 @@ int main(int argc, char* argv[]){
         exit(1);
     }
     
-    // cout << "Enter the number of queries to execute : " << endl;
-    // int number_of_queries = 0; 
-    // cin >> number_of_queries;
+    cout << "Enter the number of queries to execute : " << endl;
+    int number_of_queries = 0; 
+    cin >> number_of_queries;
     
-    // vector<query> queries_vec;
+    vector<query> queries_vec;
 
-    // for(int i=0; i<number_of_queries; i++){
-    //     cout << "Enter query " << i <<" :" << endl;
-    //     cout << "Enter A(x1,y1) " << endl;
-    //     int x1, y1;
-    //     cin >> x1 >> y1;
-    //     cout << "Enter B(x2,y2) " << endl;
-    //     int x2, y2;
-    //     cin >> x2 >> y2;
-    //     cout << "Enter C(x3,y3) " << endl;
-    //     int x3, y3;
-    //     cin >> x3 >> y3;
-    //     cout << "Enter D(x4,y4) " << endl;
-    //     int x4, y4;
-    //     cin >> x4 >> y4;
-    //     Point p1(x1, y1);
-    //     Point p2(x2, y2);
-    //     Point p3(x3, y3);
-    //     Point p4(x4, y4);
-    //     queries_vec.push_back(query(p1, p2, p3, p4));
-    // }
+    for(int i=0; i<number_of_queries; i++){
+        cout << "Enter query " << i <<" :" << endl;
+        cout << "Enter A(x1,y1) " << endl;
+        int x1, y1;
+        cin >> x1 >> y1;
+        cout << "Enter B(x2,y2) " << endl;
+        int x2, y2;
+        cin >> x2 >> y2;
+        cout << "Enter C(x3,y3) " << endl;
+        int x3, y3;
+        cin >> x3 >> y3;
+        cout << "Enter D(x4,y4) " << endl;
+        int x4, y4;
+        cin >> x4 >> y4;
+        Point p1(x1, y1);
+        Point p2(x2, y2);
+        Point p3(x3, y3);
+        Point p4(x4, y4);
+        queries_vec.push_back(query(p1, p2, p3, p4));
+    }
 
-    // for(auto q: queries_vec){
-    //     int32_t result = intensity_sum(GPU_result_values, q, width, height);
-    //     cout << "Result: " << result << endl;
-    // }
+    for(auto q: queries_vec){
+        int32_t result = intensity_sum(GPU_result_values, q, width, height);
+        cout << "Result: " << result << endl;
+    }
     
     
     
