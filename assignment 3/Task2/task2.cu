@@ -112,9 +112,9 @@ int test_intensity_sum(){
 // compare the CPU and GPU results
 bool compare_with_tolerance(long long* cpu_results, long long* gpu_results, int img_width, int img_height, double tolerance){
     
-    int num_elements = img_width * img_height;
-
-    for(int i=0; i<num_elements; i++){
+    long long num_elements = img_width * img_height;
+    printf("Comparing %d elements\n", num_elements);
+    for(long long i=0; i<num_elements; i++){
         if(abs (cpu_results[i]-gpu_results[i]) > tolerance){
             cout << "Error at index " << i << endl;
             printf("Error at Index %d: CPU: %d, GPU: %d\n", i, cpu_results[i], gpu_results[i]);
@@ -151,7 +151,21 @@ int main(int argc, char* argv[]){
     // create a new image to store the result
 
     long long* orig_values = img.data();
-    
+    //create dump values for orig_values
+    // width = 6000 , height = 4000, depth = 1;
+    // long long* orig_values = (long long*) calloc(width * height * depth, sizeof(long long));
+    // for(int i=0; i<width*height*depth; i++){
+    //     orig_values[i] = (i+1)%10;
+    // }
+    // print orig_values
+    // cout << "orig_values: " << endl;
+    // for(int i=0; i<height; i++){
+    //     for(int j=0; j< width; j++){
+    //         cout << orig_values[i*width + j] << " ";
+    //     }
+    //     cout << endl;
+    // }
+
     long long* CPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
     
     compute_summed_area_table(orig_values, CPU_result_values, width, height);
@@ -175,6 +189,8 @@ int main(int argc, char* argv[]){
     //     }
     //     cout << endl;
     // }
+
+
     // compare the CPU and GPU results
     bool result = compare_with_tolerance(CPU_result_values, GPU_result_values, width, height, 0.001);
     if(result)
