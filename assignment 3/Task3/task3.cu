@@ -44,14 +44,14 @@ __global__ void privatized_interleaved_histogram(int32_t *d_input, int32_t *d_hi
 
     if (local_thread < numBins)
     {
-        smem[tx] = 0;
+        smem[local_thread] = 0;
     }
     __syncthreads();
     for (int col = x; col < width; col += n_of_threads_in_x)
     { 
         for (int row = y; row < height; row += n_of_threads_in_y) { 
             
-                bin_val = d_input[col + row * width] / bin_size;
+                bin_val = d_input[x + y * width] / bin_size;
                 if(bin_val >= numBins){
                     bin_val = numBins - 1;
                 }
@@ -67,7 +67,7 @@ __global__ void privatized_interleaved_histogram(int32_t *d_input, int32_t *d_hi
     }
 }
 
-void GPU_compute_histogram(int32_t* input_values, int32_t* h_histogram, int img_width, int img_height, int num_of_hist_bins){
+long long GPU_compute_histogram(int32_t* input_values, int32_t* h_histogram, int img_width, int img_height, int num_of_hist_bins){
     int32_t* d_input_values;
     int32_t* d_histogram;
     
@@ -86,11 +86,16 @@ void GPU_compute_histogram(int32_t* input_values, int32_t* h_histogram, int img_
     // launch kernel with number of rows = img_height, number of columns = 1
     dim3 block(BLOCK_SIZE, BLOCK_SIZE);
     dim3 grid(ceil(img_width/(float)BLOCK_SIZE), ceil(img_height/(float)BLOCK_SIZE));
+    
+    
+    //timer 
+    auto start = std::chrono::high_resolution_clock::now();
     privatized_interleaved_histogram<<<grid, block, num_of_hist_bins * sizeof(int32_t)>>>(d_input_values, d_histogram, img_width, img_height, num_of_hist_bins);
     cudaCheckError();
     cudaDeviceSynchronize();
-    // h_histogram = (int32_t*)malloc(num_of_hist_bins*sizeof(int32_t));
-    // memset(h_histogram, 0, num_of_hist_bins*sizeof(int32_t));
+    auto end = std::chrono::high_resolution_clock::now();
+    long long duration = get_time_diff(start, end, nanoseconds);
+
 
     cudaMemcpy(h_histogram, d_histogram, num_of_hist_bins*sizeof(int32_t), cudaMemcpyDeviceToHost);
     cudaCheckError(); 
@@ -100,6 +105,8 @@ void GPU_compute_histogram(int32_t* input_values, int32_t* h_histogram, int img_
 
     cudaFree(d_histogram);
     cudaCheckError() ;
+
+    return duration;
     
 }
 
@@ -156,6 +163,33 @@ bool compare(int32_t* cpu_results, int32_t* gpu_results, int size){
     }
     return true;
 }
+float get_GFLOPS(int img_width, int img_height, long long time, time_unit t_unit){
+
+    // std::cout << "\nFLOPS: " << flops << "\n";
+    float flops = 2 * img_width * img_height;
+
+    float factor = 0;
+    switch(t_unit){
+        case nanoseconds:
+            factor = 1e-9;
+            break;
+        case microseconds:
+            factor = 1e-6;
+            break;
+        case milliseconds:
+            factor = 1e-3;
+            break;
+        case seconds:
+            factor = 1;
+            break;
+        default:
+            throw std::invalid_argument("Invalid time unit\n");
+    }
+    // std::cout << "\nTime in seconds: " << time * factor << "\n";
+    return flops / (factor * time);
+}
+
+
 
 int main(int argc, char* argv[]){
     if(argc != 2){
@@ -170,7 +204,12 @@ int main(int argc, char* argv[]){
     int img_height = img.height();
     int img_channels = img.spectrum();
     int img_size = img_width * img_height * img_channels;
-    int32_t* img_values = img.data();
+    img_width = 6000, img_height = 4000;
+    int32_t* img_values = new int32_t[img_width*img_height];
+    for(int i=0; i<img_size; i++){
+        img_values[i] = rand() % 256;
+    }
+    // int32_t* img_values = img.data();
     cout << "Image width: " << img_width << endl;
     cout << "Image height: " << img_height << endl;
     cout << "Image channels: " << img_channels << endl;
@@ -181,17 +220,32 @@ int main(int argc, char* argv[]){
     cin >> num_bins;
     int32_t* histogram = new int32_t[num_bins];
     memset(histogram, 0, num_bins*sizeof(int32_t)); 
+    //timer 
+    cout <<"CPU Results\n";
+    auto start = chrono::high_resolution_clock::now();
     compute_histogram(img_values, histogram, img_width, img_height, num_bins, 256);
+    auto end = chrono::high_resolution_clock::now();
+    long long duration =  get_time_diff(start, end, nanoseconds);
+    cout << "CPU compute histogram time: " << duration << " ns" << endl;
+    cout << "CPU compute histogram GFLOPS: " << get_GFLOPS(img_width, img_height, duration, nanoseconds) << endl;
 
+
+    cout <<"GPU Results\n";
 
     int32_t* gpu_histogram = new int32_t[num_bins];
     memset(gpu_histogram, 0, num_bins*sizeof(int32_t));
+    auto start2 = chrono::high_resolution_clock::now();
+    long long gpu_duration = GPU_compute_histogram(img_values, gpu_histogram, img_width, img_height, num_bins);
+    auto end2 = chrono::high_resolution_clock::now();
+    cout << "GPU compute histogram time without Transfer: " << gpu_duration << " ns" << endl;
+    cout << "GPU compute histogram time with Transfer: " << get_time_diff(start2, end2, nanoseconds) << " ns" << endl;
+    cout << "GPU compute histogram GFLOPS without Transfer: " << get_GFLOPS(img_width, img_height, gpu_duration, nanoseconds) << endl;
+    cout << "GPU compute histogram GFLOPS with Transfer: " << get_GFLOPS(img_width, img_height, get_time_diff(start2, end2, nanoseconds), nanoseconds) << endl;
 
-    GPU_compute_histogram(img_values, gpu_histogram, img_width, img_height, num_bins);
     // print gpu histogram
-    for(int i=0; i<num_bins; i++){
-        cout << "Bin " << i << ": " << histogram[i]<< " " << gpu_histogram[i] << endl;
-    }
+    // for(int i=0; i<num_bins; i++){
+    //     cout << "Bin " << i << ": " << histogram[i]<< " " << gpu_histogram[i] << endl;
+    // }
 
     if(compare(histogram, gpu_histogram, num_bins)){
         cout << "GPU_compute_histogram passed!!" << endl;
@@ -202,4 +256,7 @@ int main(int argc, char* argv[]){
 
     return 0;
 }
+
+
+
 

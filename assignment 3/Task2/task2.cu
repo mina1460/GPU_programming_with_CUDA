@@ -128,15 +128,15 @@ bool compare_with_tolerance(long long* cpu_results, long long* gpu_results, int 
 
 
 int main(int argc, char* argv[]){
-    if(argc != 2)
-    {
-        cout << "Usage: " << argv[0] << " <img_file_path>" << endl;
-        return -1;
-    }
+    // if(argc != 2)
+    // {
+    //     cout << "Usage: " << argv[0] << " <img_file_path>" << endl;
+    //     return -1;
+    // }
     
     test_compute_summed_area_table();
     test_intensity_sum();
-    string img_path = argv[1];
+    string img_path ="./1.jpg";//argv[1];
 
     CImg<long long> img(img_path.c_str());
 
@@ -192,70 +192,6 @@ int main(int argc, char* argv[]){
         exit(1);
     }
     
-//     cout <<"The Non-Gneralized Kernel of GPU\n";
-//     // width = 48; height = 48; depth = 1;
-//     // create an origValues array
-//     long long* orig_values2 = (long long*) calloc(width * height * depth, sizeof(long long));
-//     //dump values 
-//     for(int i = 0; i < width * height * depth; i++){
-//         orig_values2[i] = i%250;
-//     }
-//     // cout the orig_values
-//     for(int i = 0 ; i < height; i++)
-//     {
-//         for(int j = 0; j < width; j++)
-//         {
-//             cout << orig_values2[i * width + j] << " ";
-//         }
-//         cout << endl;
-//     }
-//     cout << endl;
-//     // get the CPU result from this array
-//     long long* CPU_result_values2 = (long long*) calloc(width * height * depth, sizeof(long long));
-    
-//     // get the cpu result
-//     compute_summed_area_table(orig_values2, CPU_result_values2, width, height);
-//     // cout the CPU result
-//    for(int i = 0 ; i < height; i++)
-//     {
-//         for(int j = 0; j < width; j++)
-//         {
-//             cout << CPU_result_values2[i * width + j] << " ";
-//         }
-//         cout << endl;
-//     }
-
-//     long long* GPU_result_values2 = (long long*) calloc(width * height * depth, sizeof(long long));
-//     auto start3 = chrono::high_resolution_clock::now();
-//     long long kernel_duration2 = GPU_summed_area_table_not_Generalized(orig_values2, GPU_result_values2, width, height);
-
-//     // cout the GPU result
-//     for(int i = 0 ; i < height; i++)
-//     {
-//         for(int j = 0; j < width; j++)
-//         {
-//             cout << GPU_result_values2[i * width + j] << " ";
-//         }
-//         cout << endl;
-//     }
-//     //compare the CPU and GPU results
-//     bool result2 = compare_with_tolerance(CPU_result_values2, GPU_result_values2, width, height, 0.001);
-//     if(result2)
-//         cout << "The GPU of the second kernel Test Passed" << endl;
-//     else
-//     {
-//         cout << "Test failed" << endl;
-//         exit(1);
-//     }
-//     auto end3 = chrono::high_resolution_clock::now();
-//     long long duration3 =  get_time_diff(start3, end3, nanoseconds);
-//     cout << "GPU duration without Data Transfer: " << kernel_duration2 << " ns" << endl;
-//     cout << "GPU duration with Data Transfer: " << duration3 << " ns" << endl;
-//     // number of flops for the GPU
-//     // float GPU_Flops3 = get_GPU_GFLOPS(width, height, kernel_duration2, nanoseconds);
-//     // cout << "GPU GFLOPS Without Transfer: " << GPU_Flops3 << endl;
-//     // float GPU_Flops4 = get_GPU_GFLOPS(width, height, duration3, nanoseconds);
-//     // cout << "GPU GFLOPS with Transfer: " << GPU_Flops4 << endl;
 
 
     cout << "Enter the number of queries to execute : " << endl;
@@ -390,10 +326,10 @@ float get_GPU_GFLOPS(int img_width, int img_height, long long time, time_unit t_
 float get_CPU_GFLOPS(int img_width, int img_height, long long time, time_unit t_unit)
 {
     //Returns the GFLOPS of a 2D PrefixSum
-    int numReadAccess   = 3; 
-    int numWriteAccess  = 1; 
+    // int numReadAccess   = 3; 
+    // int numWriteAccess  = 1; 
     int operations      = 4; 
-    float flops = img_width * img_height * (operations + numReadAccess + numWriteAccess);
+    float flops = img_width * img_height * (operations);
     return get_GFLOPS(img_width, img_height, time, t_unit, flops); 
 }
 
