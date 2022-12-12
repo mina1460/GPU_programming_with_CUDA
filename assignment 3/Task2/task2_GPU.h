@@ -2,7 +2,7 @@
 #include<iostream>
 using namespace std; 
 #define needed_threads 1024
-#define TILE_WIDTH 5
+#define TILE_WIDTH 32
 
 __global__ void prefixSumScanKernel(long long* input_matrix, long long* add_matrix, long long* result_matrix, int img_width, int img_height, int n_blocks_row, bool isadded)
 {
@@ -92,6 +92,8 @@ __global__ void efficientTransposeKernel( long long *input_matrix, long long *re
 	}
 }
 
+
+
 long long GPU_summed_area_table(long long* input_matrix, long long* result_image, int img_width, int img_height)
 {
     long long* original_matrix;    
@@ -105,7 +107,6 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
     long long* prefix_add_matrix_2;
 
     int matrixSize = img_width * img_height * sizeof(long long);
-    const int maxNumberOfBlocks = 65535;
     const int maxNumberOfThreads = needed_threads;
 
     int n_blocks_row = ceil(float(img_width)/maxNumberOfThreads);
@@ -144,22 +145,20 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
     // Each block will be conisdered as a section of a row
 
     
-    int row_threads = min(maxNumberOfThreads, block_width);
     // The question has mentioned that the matrix will be square (num of rows = num of columns)
-    dim3 dimBlock(row_threads);
+    dim3 dimBlock(maxNumberOfThreads);
     dim3 dimGrid(n_blocks_row, img_height+1); // number of rows and number of blocks needed for a specific row
     dim3 dimBlock2(n_blocks_row);
     dim3 dimGrid2(n_blocks_row,img_height);
     dim3 dimBlock3(TILE_WIDTH, TILE_WIDTH);
     dim3 dimGrid3(ceil(float(img_width)/TILE_WIDTH), ceil(float(img_height)/TILE_WIDTH));
 
-    cout << "n_blocks_row: " << n_blocks_row << endl;
     // with columns 
 
     dim3 dimGrid4(n_blocks_col, img_width);
     dim3 dimBlock5(n_blocks_col);
     dim3 dimGrid5(n_blocks_col,img_width);
-    dim3 dimGrid6 ( ceil(float(img_height)/TILE_WIDTH),ceil(float(img_width)/TILE_WIDTH));
+    dim3 dimGrid6 (ceil(float(img_height)/TILE_WIDTH),ceil(float(img_width)/TILE_WIDTH));
 
     std::chrono::high_resolution_clock::time_point start = get_time();
 
@@ -214,6 +213,17 @@ long long GPU_summed_area_table(long long* input_matrix, long long* result_image
     cudaFree(result_matrix);
     cudaCheckError();
 
+    cudaFree(prefix_add_matrix);
+    cudaCheckError();
+
+    cudaFree(prefix_add_matrix_2);
+    cudaCheckError();
+
+    cudaFree(add_matrix);
+    cudaCheckError();
+
+    cudaFree(add_matrix_2);
+    cudaCheckError();
     return kernel_duration;
 
 } 

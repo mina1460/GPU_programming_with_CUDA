@@ -111,10 +111,6 @@ __global__ void convolution_2D_tiled_kernel(float *d_input, float *d_output, int
     int tile_col_start = blockIdx.x * blockDim.x ;
     int tile_col_end = tile_col_start+ blockDim.x;
 
-    if(threadIdx.x == 3 && threadIdx.y == 2 && blockIdx.x == 0 && blockIdx.y == 0) {
-        printf("tile_row_start: %d, tile_row_end: %d, tile_col_start: %d, tile_col_end: %d\n", tile_row_start, tile_row_end, tile_col_start, tile_col_end);
-    }
-
     float pvalue = 0;
     int row_start = row - (mask_width / 2);
     int col_start = col - (mask_width / 2);
@@ -126,24 +122,18 @@ __global__ void convolution_2D_tiled_kernel(float *d_input, float *d_output, int
             int cur_col = col_start + j;
             if (cur_row < 0){
                 cur_row = 0;
-                //ty = 0;
             }  
             else if(cur_row >= height){
                 cur_row = height - 1;
-                //ty = blockDim.y - 1;
             }
             
             if (cur_col < 0){
                 cur_col = 0;
-                //tx = 0;
             }  
             else if(cur_col >= width){
                 cur_col = width - 1;
-                //tx = blockDim.x - 1;
             }
 
-            //int x = tx + (cur_col - tile_col_start);
-            //int y = ty + (cur_row - tile_row_start); 
 
             int x = cur_col - tile_col_start;
             int y = cur_row - tile_row_start;
@@ -156,7 +146,6 @@ __global__ void convolution_2D_tiled_kernel(float *d_input, float *d_output, int
                 pvalue += d_input[cur_row * width + cur_col] * d_mask[i * mask_width + j];
             }
         }
-
 
         if(row * width + col < width*height)
                 d_output[row * width + col] = pvalue;

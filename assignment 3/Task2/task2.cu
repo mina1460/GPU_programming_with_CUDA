@@ -11,8 +11,8 @@
 
 using namespace cimg_library;
 using namespace std;
-
-
+float get_GPU_GFLOPS(int img_width, int img_height, long long time, time_unit t_unit);
+float get_CPU_GFLOPS(int img_width, int img_height, long long time, time_unit t_unit);
 class Point {
     public:
         int x;
@@ -125,6 +125,8 @@ bool compare_with_tolerance(long long* cpu_results, long long* gpu_results, int 
     return true;
 }
 
+
+
 int main(int argc, char* argv[]){
     if(argc != 2)
     {
@@ -151,25 +153,34 @@ int main(int argc, char* argv[]){
     // create a new image to store the result
 
     long long* orig_values = img.data();
-    width = 6; height = 5; depth = 1;
   
-    //print orig
-    cout << "Original: " << endl;
-    for(int i=0; i<height; i++){
-        for(int j=0; j<width; j++){
-            cout << orig_values[i*height + j] << " ";
-        }
-        cout << endl;
-    }
+
 
     long long* CPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
-    
+    // calculate the time for the cpu 
+    auto start = chrono::high_resolution_clock::now();
     compute_summed_area_table(orig_values, CPU_result_values, width, height);
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = get_time_diff(start, end, nanoseconds);
+    
+    float cpu_Flops = get_CPU_GFLOPS(width, height, duration, nanoseconds);
+    cout << "CPU GFLOPS: " << cpu_Flops << endl;
+    
+    cout << "CPU duration: " << duration << " ns" << endl;
 
-
+    cout << "The Genralized Kernel of GPU\n";
     long long* GPU_result_values = (long long*) calloc(width * height * depth, sizeof(long long));
+    auto start2 = chrono::high_resolution_clock::now();
     long long kernel_duration = GPU_summed_area_table(orig_values, GPU_result_values, width, height);
-    cout << "Kernel duration: " << kernel_duration << " ms" << endl;
+    auto end2 = chrono::high_resolution_clock::now();
+    long long duration2 =  get_time_diff(start2, end2, nanoseconds);
+    cout << "GPU duration without Data Transfer: " << kernel_duration << " ns" << endl;
+    cout << "GPU duration with Data Transfer: " << duration2 << " ns" << endl;
+    // number of flops for the GPU 
+    float GPU_Flops = get_GPU_GFLOPS(width, height, kernel_duration, nanoseconds);
+    cout << "GPU GFLOPS Without Transfer: " << GPU_Flops << endl;
+    float GPU_Flops2 = get_GPU_GFLOPS(width, height, duration2, nanoseconds);
+    cout << "GPU GFLOPS with Transfer: " << GPU_Flops2 << endl;
 
     // compare the CPU and GPU results
     bool result = compare_with_tolerance(CPU_result_values, GPU_result_values, width, height, 0.001);
@@ -181,6 +192,21 @@ int main(int argc, char* argv[]){
         exit(1);
     }
     
+    // cout <<"The Non-Gneralized Kernel of GPU\n";
+    // long long* GPU_result_values2 = (long long*) calloc(width * height * depth, sizeof(long long));
+    // auto start3 = chrono::high_resolution_clock::now();
+    // long long kernel_duration2 = GPU_summed_area_table_not_Generalized(orig_values, GPU_result_values2, width, height);
+    // auto end3 = chrono::high_resolution_clock::now();
+    // long long duration3 =  get_time_diff(start3, end3, nanoseconds);
+    // cout << "GPU duration without Data Transfer: " << kernel_duration2 << " ns" << endl;
+    // cout << "GPU duration with Data Transfer: " << duration3 << " ns" << endl;
+    // // number of flops for the GPU
+    // float GPU_Flops3 = get_GPU_GFLOPS(width, height, kernel_duration2, nanoseconds);
+    // cout << "GPU GFLOPS Without Transfer: " << GPU_Flops3 << endl;
+    // float GPU_Flops4 = get_GPU_GFLOPS(width, height, duration3, nanoseconds);
+    // cout << "GPU GFLOPS with Transfer: " << GPU_Flops4 << endl;
+
+
     cout << "Enter the number of queries to execute : " << endl;
     int number_of_queries = 0; 
     cin >> number_of_queries;
@@ -231,4 +257,93 @@ int main(int argc, char* argv[]){
 
     return 0;
 }
+
+float get_GFLOPS(int img_width, int img_height, long long time, time_unit t_unit, float flops){
+
+    // std::cout << "\nFLOPS: " << flops << "\n";
+
+    float factor = 0;
+    switch(t_unit){
+        case nanoseconds:
+            factor = 1e-9;
+            break;
+        case microseconds:
+            factor = 1e-6;
+            break;
+        case milliseconds:
+            factor = 1e-3;
+            break;
+        case seconds:
+            factor = 1;
+            break;
+        default:
+            throw std::invalid_argument("Invalid time unit\n");
+    }
+    // std::cout << "\nTime in seconds: " << time * factor << "\n";
+    return flops / (factor * time);
+}
+
+float get_GPU_GFLOPS_Not_Generalized(int img_width, int img_height, long long time, time_unit t_unit)
+{
+    // kernel is 2D PrefixSum
+    // sequentialVersion = ceil(img_width/1024) * img_height; 
+    // parallelVersion = ceil(img_width/1024) * img_height * log2(ceil(img_width/1024));
+    // Adding_to_next_section =  ceil(img_width/1024) * img_height * ceil(img_width/1024);
+    // kernel1 = sequentialVersion + parallelVersion + Adding_to_next_section;
+    // Same thing for column version
+    // sequentialVersion2 = ceil(img_height/1024) * img_width;
+    // parallelVersion2 = ceil(img_height/1024) * img_width * log2(ceil(img_height/1024));
+    // Adding_to_next_section2 =  ceil(img_height/1024) * img_width * ceil(img_height/1024);
+    // kernel2 = sequentialVersion2 + parallelVersion2 + Adding_to_next_section2;
+
+    float sequentialVersion = ceil(img_width/1024.0) * img_height;
+    float parallelVersion = ceil(img_width/1024.0) * img_height * log2(ceil(img_width/1024.0));
+    float Adding_to_next_section =  ceil(img_width/1024.0) * img_height * ceil(img_width/1024.0);
+    float kernel1 = sequentialVersion + parallelVersion + Adding_to_next_section;
+    float sequentialVersion2 = ceil(img_height/1024.0) * img_width;
+    float parallelVersion2 = ceil(img_height/1024.0) * img_width * log2(ceil(img_height/1024.0));
+    float Adding_to_next_section2 =  ceil(img_height/1024.0) * img_width * ceil(img_height/1024.0);
+    float kernel2 = sequentialVersion2 + parallelVersion2 + Adding_to_next_section2;
+    float flops = kernel1 + kernel2;
+    return get_GFLOPS(img_width, img_height, time, t_unit, flops);
+}
+
+
+float get_GPU_GFLOPS(int img_width, int img_height, long long time, time_unit t_unit)
+{
+        // returns the GFLOPS of a 2D PrefixSum 
+    // Kernel1 = img_height*img_width*log2(img_width)
+    // Block_width_size = ceil(img_width/1024)
+    // Kernel2 =  Block_width_size*img_height*log2(Block_width_size)
+    // Kernel3 =  img_height * img_width
+    // Kernel4 =  img_height * img_width * 2  // Transpose 
+    // Kernel5 = img_width * img_height * log2(img_height) // PrefixSum
+    // Block_height_size = ceil(img_height/1024)
+    // Kernel6 = Block_height_size * img_width * log2(Block_height_size) // PrefixSum
+    // Kernel7 = img_width * img_height // Transpose
+    // GFLOPS = Sum 7 kernels / time
+    float kernel1 = img_height * img_width * log2(img_width);
+    float kernel2 = ceil(img_width/1024.0) * img_height * log2(ceil(img_width/1024.0));
+    float kernel3 = img_height * img_width;
+    float kernel4 = img_height * img_width * 2;
+    float kernel5 = img_width * img_height * log2(img_height);
+    float kernel6 = ceil(img_height/1024.0) * img_width * log2(ceil(img_height/1024.0));
+    float kernel7 = img_width * img_height;
+    float flops = kernel1 + kernel2 + kernel3 + kernel4 + kernel5 + kernel6 + kernel7;
+
+    return get_GFLOPS(img_width, img_height, time, t_unit, flops);
+
+}
+
+
+float get_CPU_GFLOPS(int img_width, int img_height, long long time, time_unit t_unit)
+{
+    //Returns the GFLOPS of a 2D PrefixSum
+    int numReadAccess   = 3; 
+    int numWriteAccess  = 1; 
+    int operations      = 4; 
+    float flops = img_width * img_height * (operations + numReadAccess + numWriteAccess);
+    return get_GFLOPS(img_width, img_height, time, t_unit, flops); 
+}
+
 

@@ -2,11 +2,11 @@
 #define sqrt_needed_threads 16 // sqrt(512/2)
 
 
-#define needed_threads 2048
+#define needed_threads 1024
 #define block_width needed_threads
 
 
-__global__ void scanRowsKernel(int32_t * input_matrix, int32_t * result_matrix, int img_width, int img_height)
+__global__ void scanRowsKernel(long long * input_matrix, long long * result_matrix, int img_width, int img_height)
 {
         /*
             (1) Each thread has some sequential Work to be done
@@ -18,7 +18,7 @@ __global__ void scanRowsKernel(int32_t * input_matrix, int32_t * result_matrix, 
         int start_idx          = section_length * threadIdx.x;
         int end_idx             = min(start_idx + section_length - 1, img_width - 1);
 
-        __shared__ int32_t shared_memory[block_width];
+        __shared__ long long shared_memory[block_width];
 
         if(start_idx < img_width)
         {
@@ -56,7 +56,7 @@ __global__ void scanRowsKernel(int32_t * input_matrix, int32_t * result_matrix, 
             __syncthreads();
 
             // Third phase: Each sharedMemory value is added to the next section of the result matrix
-            int32_t temp = 0; 
+            long long temp = 0; 
             if(threadIdx.x > 0)
                 temp = shared_memory[threadIdx.x - 1];
 
@@ -71,7 +71,7 @@ __global__ void scanRowsKernel(int32_t * input_matrix, int32_t * result_matrix, 
         }
 }
 
-__global__ void scanColumnsKernel(int32_t * result_matrix, int img_width, int img_height)
+__global__ void scanColumnsKernel(long long * result_matrix, int img_width, int img_height)
 {
         /*
             (1) Each thread has some sequential Work to be done
@@ -85,7 +85,7 @@ __global__ void scanColumnsKernel(int32_t * result_matrix, int img_width, int im
         int start_idx = section_length * threadIdx.x;
         int end_idx   = min(start_idx + section_length - 1, img_height - 1);
 
-        __shared__ int32_t shared_memory[block_width];
+        __shared__ long long shared_memory[block_width];
 
         if(start_idx < img_height)
         {
@@ -128,7 +128,7 @@ __global__ void scanColumnsKernel(int32_t * result_matrix, int img_width, int im
             __syncthreads();
 
             // Third phase: Each sharedMemory value is added to the next section of the result matrix
-            int32_t temp = 0; 
+            long long temp = 0; 
             if(threadIdx.x > 0)
                 temp = shared_memory[threadIdx.x - 1];
 
@@ -146,12 +146,12 @@ __global__ void scanColumnsKernel(int32_t * result_matrix, int img_width, int im
 
 
 
-long long GPU_summed_area_table_not_Generalized(int32_t* input_matrix, int32_t* result_image, int img_width, int img_height)
+long long GPU_summed_area_table_not_Generalized(long long* input_matrix, long long* result_image, int img_width, int img_height)
 {
-    int32_t* original_matrix;    
-    int32_t* result_matrix; 
+    long long* original_matrix;    
+    long long* result_matrix; 
 
-    int matrixSize = img_width * img_height * sizeof(int32_t);
+    int matrixSize = img_width * img_height * sizeof(long long);
 
     cudaMalloc((void **)&original_matrix, matrixSize);
     cudaCheckError();
