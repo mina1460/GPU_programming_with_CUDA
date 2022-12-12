@@ -192,49 +192,49 @@ int main(int argc, char* argv[]){
         exit(1);
     }
 
-    // cout << "Enter the number of queries to execute : " << endl;
-    // int number_of_queries = 0; 
-    // cin >> number_of_queries;
+    cout << "Enter the number of queries to execute : " << endl;
+    int number_of_queries = 0; 
+    cin >> number_of_queries;
     
-    // vector<query> queries_vec;
+    vector<query> queries_vec;
 
-    // for(int i=0; i<number_of_queries; i++){
-    //     cout << "Enter query " << i <<" :" << endl;
-    //     cout << "Enter A(x1,y1) " << endl;
-    //     int x1, y1;
-    //     cin >> x1 >> y1;
-    //     cout << "Enter B(x2,y2) " << endl;
-    //     int x2, y2;
-    //     cin >> x2 >> y2;
-    //     cout << "Enter C(x3,y3) " << endl;
-    //     int x3, y3;
-    //     cin >> x3 >> y3;
-    //     cout << "Enter D(x4,y4) " << endl;
-    //     int x4, y4;
-    //     cin >> x4 >> y4;
-    //     Point p1(x1, y1);
-    //     Point p2(x2, y2);
-    //     Point p3(x3, y3);
-    //     Point p4(x4, y4);
-    //     vector<Point>v = {p1, p2, p3, p4};
-    //     sort(v.begin(), v.end(), [](Point a, Point b){
-    //         if(a.x == b.x)
-    //             return a.y < b.y;
-    //         return a.x < b.x;
-    //     }); 
-    //     if(v[0].x != v[1].x || v[0].y != v[2].y  || v[1].y != v[3].y || v[2].x != v[3].x)
-    //     {
-    //         cout << "Invalid query" << endl;
-    //         continue; 
-    //     }
+    for(int i=0; i<number_of_queries; i++){
+        cout << "Enter query " << i <<" :" << endl;
+        cout << "Enter A(x1,y1) " << endl;
+        int x1, y1;
+        cin >> x1 >> y1;
+        cout << "Enter B(x2,y2) " << endl;
+        int x2, y2;
+        cin >> x2 >> y2;
+        cout << "Enter C(x3,y3) " << endl;
+        int x3, y3;
+        cin >> x3 >> y3;
+        cout << "Enter D(x4,y4) " << endl;
+        int x4, y4;
+        cin >> x4 >> y4;
+        Point p1(x1, y1);
+        Point p2(x2, y2);
+        Point p3(x3, y3);
+        Point p4(x4, y4);
+        vector<Point>v = {p1, p2, p3, p4};
+        sort(v.begin(), v.end(), [](Point a, Point b){
+            if(a.x == b.x)
+                return a.y < b.y;
+            return a.x < b.x;
+        }); 
+        if(v[0].x != v[1].x || v[0].y != v[2].y  || v[1].y != v[3].y || v[2].x != v[3].x)
+        {
+            cout << "Invalid query" << endl;
+            continue; 
+        }
 
-    //     queries_vec.push_back(query(v[0], v[1], v[2], v[3]));
-    // }
+        queries_vec.push_back(query(v[0], v[1], v[2], v[3]));
+    }
 
-    // for(auto q: queries_vec){
-    //     int32_t result = intensity_sum(GPU_result_values, q, width, height);
-    //     cout << "Result: " << result << endl;
-    // }
+    for(auto q: queries_vec){
+        int32_t result = intensity_sum(GPU_result_values, q, width, height);
+        cout << "Result: " << result << endl;
+    }
     
 
     delete[] GPU_result_values;
