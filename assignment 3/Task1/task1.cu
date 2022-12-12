@@ -96,6 +96,32 @@ const string kernel_names[8] = {
     "bottom_sobel",
 };
 
+float get_GFLOPS(int img_width, int img_height, long long time, time_unit t_unit){
+
+    // std::cout << "\nFLOPS: " << flops << "\n";
+    float flops = img_height * img_width * 2 * MAX_MASK_SIZE + img_height * img_width;
+    float factor = 0;
+    switch(t_unit){
+        case nanoseconds:
+            factor = 1e-9;
+            break;
+        case microseconds:
+            factor = 1e-6;
+            break;
+        case milliseconds:
+            factor = 1e-3;
+            break;
+        case seconds:
+            factor = 1;
+            break;
+        default:
+            throw std::invalid_argument("Invalid time unit\n");
+    }
+    // std::cout << "\nTime in seconds: " << time * factor << "\n";
+    return flops / (factor * time);
+}
+
+
 __global__ void convolution_2D_tiled_kernel(float *d_input, float *d_output, int width, int height) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -148,52 +174,51 @@ __global__ void convolution_2D_tiled_kernel(float *d_input, float *d_output, int
         }
 
         if(row * width + col < width*height)
-                d_output[row * width + col] = pvalue;
+                d_output[row * width + col] = min(255.0, max(0.0f, pvalue));
     }
 }
 
-__global__ void convolution_output_tiling_2D_kernel(float *d_input, float *d_output, int width, int height) {
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
+// __global__ void convolution_output_tiling_2D_kernel(float *d_input, float *d_output, int width, int height) {
+//     int tx = threadIdx.x;
+//     int ty = threadIdx.y;
     
-    int row_o = blockIdx.y * TILE_SIZE + ty; 
-    int col_o = blockIdx.x * TILE_SIZE + tx;
+//     int row_o = blockIdx.y * TILE_SIZE + ty; 
+//     int col_o = blockIdx.x * TILE_SIZE + tx;
     
-    int row_i = row_o - MAX_MASK_WIDTH/2; 
-    int col_i = col_o - MAX_MASK_WIDTH/2;
-    // this is the same block width = tile size + mask width - 1
-    __shared__ float N_ds[TILE_SIZE+MAX_MASK_WIDTH-1][TILE_SIZE+MAX_MASK_HEIGHT-1];
-    // grid size is width / tile size
-    if(row_i < 0) row_i = 0;
-    if(row_i >= height) row_i = height - 1;
-    if(col_i < 0) col_i = 0;
-    if(col_i >= width) col_i = width - 1;
+//     int row_i = row_o - MAX_MASK_WIDTH/2; 
+//     int col_i = col_o - MAX_MASK_WIDTH/2;
+//     // this is the same block width = tile size + mask width - 1
+//     __shared__ float N_ds[TILE_SIZE+MAX_MASK_WIDTH-1][TILE_SIZE+MAX_MASK_HEIGHT-1];
+//     // grid size is width / tile size
+//     if(row_i < 0) row_i = 0;
+//     if(row_i >= height) row_i = height - 1;
+//     if(col_i < 0) col_i = 0;
+//     if(col_i >= width) col_i = width - 1;
 
-    N_ds[ty][tx] = d_input[row_i*width+col_i];
-    __syncthreads();
+//     N_ds[ty][tx] = d_input[row_i*width+col_i];
+//     __syncthreads();
 
-    float output = 0.0f;
-    if(ty < TILE_SIZE && tx < TILE_SIZE){
-        for(int i = 0; i < MAX_MASK_WIDTH; i++) { 
-            for(int j = 0; j < MAX_MASK_WIDTH; j++) {
-                output += d_mask[i*MAX_MASK_WIDTH+j] * N_ds[i+ty][j+tx]; 
-            }
-        }
+//     float output = 0.0f;
+//     if(ty < TILE_SIZE && tx < TILE_SIZE){
+//         for(int i = 0; i < MAX_MASK_WIDTH; i++) { 
+//             for(int j = 0; j < MAX_MASK_WIDTH; j++) {
+//                 output += d_mask[i*MAX_MASK_WIDTH+j] * N_ds[i+ty][j+tx]; 
+//             }
+//         }
     
-        if(row_o < height && col_o < width){ 
-            d_output[row_o*width + col_o] = output;
-        } 
-    }
-    return;
-}
+//         if(row_o < height && col_o < width){ 
+//             d_output[row_o*width + col_o] = output;
+//         } 
+//     }
+//     return;
+// }
     
     
-void GPU_apply_convolution_kernel(float* h_image, int img_width, int img_height, const float *h_mask, float* output, float *output_2) {
+long long GPU_apply_convolution_kernel(float* h_image, int img_width, int img_height, const float *h_mask, float* output) {
 
     float *d_image;
     float *d_kernel;
     float *d_result;
-    float *d_result_2;
     
     cudaMalloc((void **)&d_image, img_width * img_height* sizeof(float));
     cudaCheckError();
@@ -202,8 +227,6 @@ void GPU_apply_convolution_kernel(float* h_image, int img_width, int img_height,
     cudaMalloc((void **)&d_result, img_width * img_height * sizeof(float));
     cudaCheckError();
 
-    cudaMalloc((void **)&d_result_2, img_width * img_height * sizeof(float));
-    cudaCheckError();
 
     // copy image to device
     cudaMemcpy(d_image, h_image, img_width * img_height * sizeof(float), cudaMemcpyHostToDevice);
@@ -214,24 +237,26 @@ void GPU_apply_convolution_kernel(float* h_image, int img_width, int img_height,
     cudaCheckError();
 
     
-    dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
+    // dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
     dim3 dimGrid(ceil((float)img_width / TILE_SIZE), ceil((float)img_height / TILE_SIZE));
-    convolution_output_tiling_2D_kernel<<<dimGrid, dimBlock>>>(d_image, d_result, img_width,img_height);
-    cudaDeviceSynchronize();
-    cudaCheckError();
+    // convolution_output_tiling_2D_kernel<<<dimGrid, dimBlock>>>(d_image, d_result, img_width,img_height);
+    // cudaDeviceSynchronize();
+    // cudaCheckError();
 
+    //timer 
+    auto start = std::chrono::high_resolution_clock::now();
     dim3 dimBlock_generalCache(TILE_SIZE, TILE_SIZE);
-    convolution_2D_tiled_kernel<<<dimGrid, dimBlock_generalCache>>>(d_image, d_result_2, img_width,img_height);
+    convolution_2D_tiled_kernel<<<dimGrid, dimBlock_generalCache>>>(d_image, d_result, img_width,img_height);
     cudaDeviceSynchronize();
     cudaCheckError();
+    auto finish = std::chrono::high_resolution_clock::now();
+    long long kernel_duration = get_time_diff(start, finish, nanoseconds);
     
     // copy result back to host
     
     cudaMemcpy(output, d_result, img_width * img_height * sizeof(float), cudaMemcpyDeviceToHost);
     cudaCheckError();
 
-    cudaMemcpy(output_2, d_result_2, img_width * img_height * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaCheckError();
     
     cudaFree(d_image); 
     cudaCheckError();
@@ -239,19 +264,19 @@ void GPU_apply_convolution_kernel(float* h_image, int img_width, int img_height,
     cudaFree(d_result);
     cudaCheckError();
     
-    cudaFree(d_result_2);
-    cudaCheckError();
-    return;
+
+    return kernel_duration;
 }
 
 
 void apply_convolution_kernel(float* input_data, float* output_data, const float* kernel, int kernel_width, int kernel_height, int img_width, int img_height)
 {
+
+
     int output_index, input_r, input_c, input_index, kernel_index;
     float p_value;
     for(int pixel_r=0; pixel_r < img_height; pixel_r++){
         for(int pixel_c=0; pixel_c < img_width; pixel_c++){
-            output_index = pixel_r * img_width + pixel_c;
             p_value = 0;
             for(int kernel_r=0; kernel_r < kernel_height; kernel_r++){
                 for(int kernel_c=0; kernel_c < kernel_width; kernel_c++){
@@ -271,9 +296,12 @@ void apply_convolution_kernel(float* input_data, float* output_data, const float
                     p_value += input_data[input_index] * kernel[kernel_index];
                 }
             }
-            output_data[output_index] = p_value;
+            output_index = pixel_r * img_width + pixel_c;
+            output_data[output_index] = min(255.0, max(0.0f, p_value));
         }
     }
+
+
 }
 
 bool compare_with_tolerance(float* a, float* b, int size, float tolerance){
@@ -285,6 +313,8 @@ bool compare_with_tolerance(float* a, float* b, int size, float tolerance){
     }
     return true;
 }
+
+
 
 
 int main(int argc, char *argv[])
@@ -314,7 +344,7 @@ int main(int argc, char *argv[])
     cout << choose_conv_kernel_msg << endl;
     int kernel_choice(1);
     cin >> kernel_choice;
-
+    // kernel_choice = 3;
 
     if (kernel_choice < 1 || kernel_choice > 8)
     {
@@ -324,6 +354,7 @@ int main(int argc, char *argv[])
     kernel_choice -= 1;
     // get the kernel pointer
     const float *kernel = kernels[kernel_choice];
+    
 
     // open the image with cimg library
     CImg<float> img(img_path.c_str());
@@ -349,28 +380,40 @@ int main(int argc, char *argv[])
     }
     
     // apply the convolution kernel
+    //timer 
+    auto start = std::chrono::high_resolution_clock::now();
     apply_convolution_kernel(orig_values, result_values, kernel, 3, 3, width, height);
-    
+    auto end = std::chrono::high_resolution_clock::now();
+    long long CPU_duration = get_time_diff(start, end, nanoseconds);
+    cout << "CPU time: " << CPU_duration << " ns" << endl;
+    //giga flops
+    cout << "CPU GFLOPS: " << get_GFLOPS(width, height, CPU_duration, nanoseconds) << endl;
+
     // create a new image to store the result
-    CImg<float> result_img(result_values, width, height, 1, depth);
+    CImg<float> result_img(result_values, width, height);
     string result_img_path = img_basename + "_" + kernel_names[kernel_choice] + ".jpeg";
     result_img.save(result_img_path.c_str());
     cout << "result image saved to " << result_img_path << endl;    
     
     float* gpu_result_values = new float[width * height * depth];
-    float* gpu_result_values_2 = new float[width * height * depth];
-    GPU_apply_convolution_kernel(img.data(),img.width(), img.height(), kernel, gpu_result_values,gpu_result_values_2);
+
+    //timer 
+    auto start2 = std::chrono::high_resolution_clock::now();
+    long long kernel_duration = GPU_apply_convolution_kernel(img.data(),img.width(), img.height(), kernel, gpu_result_values);
+    auto finish2 = std::chrono::high_resolution_clock::now();
+    long long GPU_duration = get_time_diff(start2, finish2, nanoseconds);
+
+    cout << "GPU kernel duration: " << kernel_duration << " ns" << endl;
+    cout << "GPU total duration: " << GPU_duration << " ns" << endl;
+    //GigFlops
+    cout << "GPU GFlops without Data Transfer: "<< get_GFLOPS(width, height, kernel_duration, nanoseconds) << endl;
+    cout << "GPU GFlops with Data Transfer: "<< get_GFLOPS(width, height, GPU_duration, nanoseconds) << endl;
 
     CImg<float> gpu_result_img(gpu_result_values, width, height, 1, depth);
     
-    CImg<float> gpu_result_img_2(gpu_result_values_2, width, height, 1, depth);
-
     string gpu_result_img_path = img_basename + "_" + kernel_names[kernel_choice] + "_gpu.jpeg";
-    string gpu_result_img_path_2 = img_basename + "_" + kernel_names[kernel_choice] + "_gpu_2.jpeg";
     gpu_result_img.save(gpu_result_img_path.c_str());
     cout << "gpu result image saved to " << gpu_result_img_path << endl;
-    gpu_result_img_2.save(gpu_result_img_path_2.c_str());
-    cout << "gpu result_2 image saved to " << gpu_result_img_path << endl;
 
 
     bool res = compare_with_tolerance(result_values, gpu_result_values, width * height * depth, 1e-3);
@@ -381,13 +424,7 @@ int main(int argc, char *argv[])
         cout << "Failed!!! CPU is different from GPU\n\n";
     }
 
-    bool res2 = compare_with_tolerance(result_values, gpu_result_values_2, width * height * depth, 1e-3);
-    if(res2){
-        cout << "CPU is the same as GPU results\n";
-    }
-    else{
-        cout << "Failed!!! CPU is different from GPU\n";
-    }
+  
     delete[] result_values;
     return 0;
 }

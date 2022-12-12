@@ -204,12 +204,8 @@ int main(int argc, char* argv[]){
     int img_height = img.height();
     int img_channels = img.spectrum();
     int img_size = img_width * img_height * img_channels;
-    img_width = 6000, img_height = 4000;
-    int32_t* img_values = new int32_t[img_width*img_height];
-    for(int i=0; i<img_size; i++){
-        img_values[i] = rand() % 256;
-    }
-    // int32_t* img_values = img.data();
+
+    int32_t* img_values = img.data();
     cout << "Image width: " << img_width << endl;
     cout << "Image height: " << img_height << endl;
     cout << "Image channels: " << img_channels << endl;
@@ -243,9 +239,9 @@ int main(int argc, char* argv[]){
     cout << "GPU compute histogram GFLOPS with Transfer: " << get_GFLOPS(img_width, img_height, get_time_diff(start2, end2, nanoseconds), nanoseconds) << endl;
 
     // print gpu histogram
-    // for(int i=0; i<num_bins; i++){
-    //     cout << "Bin " << i << ": " << histogram[i]<< " " << gpu_histogram[i] << endl;
-    // }
+    for(int i=0; i<num_bins; i++){
+        cout << "Bin " << i << ": " << histogram[i]<< " " << gpu_histogram[i] << endl;
+    }
 
     if(compare(histogram, gpu_histogram, num_bins)){
         cout << "GPU_compute_histogram passed!!" << endl;
